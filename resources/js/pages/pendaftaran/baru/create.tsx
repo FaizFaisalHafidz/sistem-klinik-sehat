@@ -195,7 +195,7 @@ export default function Create({ pasien }: Props) {
                                         <div className="p-4 text-center text-gray-500">
                                             <p>Tidak ada pasien ditemukan</p>
                                             <Link
-                                                href="/pasien/create?redirect=pendaftaran-baru"
+                                                href={route('pendaftaran.pasien.create')}
                                                 className="text-blue-600 hover:text-blue-800 text-sm mt-1 inline-flex items-center"
                                             >
                                                 <Plus className="w-4 h-4 mr-1" />
