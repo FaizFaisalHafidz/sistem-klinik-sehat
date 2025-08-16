@@ -152,4 +152,5 @@ require __DIR__.'/auth.php';
 // Include debug routes only in non-production environments
 if (!app()->environment('production')) {
     require __DIR__.'/debug.php';
+    require __DIR__.'/debug-advanced.php';
 }
