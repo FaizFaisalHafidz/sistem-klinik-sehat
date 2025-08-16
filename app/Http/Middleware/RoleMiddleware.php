@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class RoleMiddleware
 {
@@ -23,36 +24,55 @@ class RoleMiddleware
 
         $user = Auth::user();
 
-        // Check if user has any of the required roles
+        // Log for debugging
+        Log::info('RoleMiddleware: Checking user roles', [
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'required_roles' => $roles,
+            'user_roles' => $user->roles->pluck('name')->toArray()
+        ]);
+
+        // Check if user has any of the required roles using Spatie
         if (!empty($roles)) {
-            $hasRole = false;
+            // Convert roles array to handle multiple roles separated by |
+            $requiredRoles = [];
             foreach ($roles as $role) {
-                if ($user->hasRole($role)) {
-                    $hasRole = true;
-                    break;
+                if (strpos($role, '|') !== false) {
+                    $requiredRoles = array_merge($requiredRoles, explode('|', $role));
+                } else {
+                    $requiredRoles[] = $role;
                 }
             }
 
+            // Check if user has any of the required roles using Spatie's relationship
+            $userRoleNames = $user->roles->pluck('name')->toArray();
+            $hasRole = !empty(array_intersect($requiredRoles, $userRoleNames));
+
+            Log::info('RoleMiddleware: Role check result', [
+                'user_id' => $user->id,
+                'required_roles' => $requiredRoles,
+                'user_roles' => $userRoleNames,
+                'has_role' => $hasRole
+            ]);
+
             if (!$hasRole) {
-                // Redirect based on user's role
-                if ($user->hasRole('admin')) {
-                    return redirect()->route('admin.dashboard')
-                        ->with('error', 'Anda tidak memiliki akses ke halaman tersebut.');
-                } elseif ($user->hasRole('dokter')) {
-                    return redirect()->route('dokter.dashboard')
-                        ->with('error', 'Anda tidak memiliki akses ke halaman tersebut.');
-                } elseif ($user->hasRole('pendaftaran')) {
-                    return redirect()->route('pendaftaran.dashboard')
-                        ->with('error', 'Anda tidak memiliki akses ke halaman tersebut.');
-                } elseif ($user->hasRole('apoteker')) {
-                    return redirect()->route('apoteker.dashboard')
-                        ->with('error', 'Anda tidak memiliki akses ke halaman tersebut.');
-                } else {
-                    return redirect()->route('dashboard')
-                        ->with('error', 'Anda tidak memiliki akses ke halaman tersebut.');
-                }
+                Log::warning('RoleMiddleware: Access denied - no matching role', [
+                    'user_id' => $user->id,
+                    'required_roles' => $requiredRoles,
+                    'user_roles' => $userRoleNames,
+                    'requested_url' => $request->url()
+                ]);
+
+                // Redirect to dashboard with error message
+                return redirect()->route('dashboard')
+                    ->with('error', 'Anda tidak memiliki akses ke halaman tersebut.');
             }
         }
+
+        Log::info('RoleMiddleware: Access granted', [
+            'user_id' => $user->id,
+            'url' => $request->url()
+        ]);
 
         return $next($request);
     }

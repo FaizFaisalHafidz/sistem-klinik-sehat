@@ -148,3 +148,8 @@ Route::middleware(['auth', 'verified', 'active.user', 'role:dokter'])->prefix('d
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
+
+// Include debug routes only in non-production environments
+if (!app()->environment('production')) {
+    require __DIR__.'/debug.php';
+}
