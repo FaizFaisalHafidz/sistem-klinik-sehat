@@ -3,6 +3,29 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { AlertTriangle, ArrowLeft, Briefcase, Calendar, Clock, Edit, Heart, MapPin, Phone, User } from 'lucide-react';
 
+interface RekamMedis {
+    id: number;
+    kode_rekam_medis: string;
+    diagnosa: string;
+    status_rekam_medis: string;
+}
+
+interface RiwayatPendaftaran {
+    id: number;
+    kode_pendaftaran: string;
+    tanggal_pendaftaran: string;
+    jenis_pemeriksaan: string;
+    keluhan: string;
+    status_pendaftaran: string;
+    rekam_medis?: RekamMedis;
+}
+
+interface Statistics {
+    total_kunjungan: number;
+    kunjungan_selesai: number;
+    rekam_medis_count: number;
+}
+
 interface PasienData {
     id: number;
     no_rm: string;
@@ -25,9 +48,11 @@ interface PasienData {
 
 interface ShowPasienProps {
     pasien: PasienData;
+    riwayatPendaftaran?: RiwayatPendaftaran[];
+    statistics?: Statistics;
 }
 
-export default function ShowPasien({ pasien }: ShowPasienProps) {
+export default function ShowPasien({ pasien, riwayatPendaftaran, statistics }: ShowPasienProps) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
         { title: 'Data Pasien', href: '/admin/pasien' },
@@ -62,7 +87,9 @@ export default function ShowPasien({ pasien }: ShowPasienProps) {
     };
 
     const getJenisKelaminLabel = (jenis_kelamin: string) => {
-        return jenis_kelamin === 'laki-laki' ? 'Laki-laki' : 'Perempuan';
+        if (jenis_kelamin === 'L' || jenis_kelamin === 'laki-laki') return 'Laki-laki';
+        if (jenis_kelamin === 'P' || jenis_kelamin === 'perempuan') return 'Perempuan';
+        return jenis_kelamin;
     };
 
     const getGolonganDarahBadge = (golDarah?: string) => {
@@ -123,15 +150,15 @@ export default function ShowPasien({ pasien }: ShowPasienProps) {
                                     <p className="text-gray-600 font-mono">{pasien.no_rm}</p>
                                     <div className="flex items-center space-x-4 mt-2">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                            pasien.jenis_kelamin === 'L' 
+                                            pasien.jenis_kelamin === 'L' || pasien.jenis_kelamin === 'laki-laki'
                                                 ? 'bg-blue-100 text-blue-800' 
                                                 : 'bg-pink-100 text-pink-800'
                                         }`}>
                                             {getJenisKelaminLabel(pasien.jenis_kelamin)}
                                         </span>
-                                        {pasien.umur && (
+                                        {pasien.umur && pasien.umur > 0 && (
                                             <span className="text-sm text-gray-600">
-                                                {pasien.umur} tahun
+                                                {Math.floor(pasien.umur)} tahun
                                             </span>
                                         )}
                                         {getGolonganDarahBadge(pasien.golongan_darah)}
@@ -160,7 +187,7 @@ export default function ShowPasien({ pasien }: ShowPasienProps) {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Tempat Lahir</label>
-                                    <p className="text-gray-900">{pasien.tempat_lahir}</p>
+                                    <p className="text-gray-900">{pasien.tempat_lahir || '-'}</p>
                                 </div>
 
                                 <div>
@@ -198,7 +225,9 @@ export default function ShowPasien({ pasien }: ShowPasienProps) {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Umur</label>
-                                    <p className="text-gray-900">{pasien.umur ? `${pasien.umur} tahun` : '-'}</p>
+                                    <p className="text-gray-900">
+                                        {pasien.umur && pasien.umur > 0 ? `${Math.floor(pasien.umur)} tahun` : '-'}
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -283,17 +312,93 @@ export default function ShowPasien({ pasien }: ShowPasienProps) {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Statistics */}
+                        {statistics && (
+                            <div className="bg-white rounded-lg border border-gray-200 p-6">
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Statistik Kunjungan</h3>
+                                
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="text-center">
+                                        <div className="text-2xl font-bold text-blue-600">{statistics.total_kunjungan}</div>
+                                        <div className="text-sm text-gray-600">Total Kunjungan</div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-2xl font-bold text-green-600">{statistics.kunjungan_selesai}</div>
+                                        <div className="text-sm text-gray-600">Selesai</div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-2xl font-bold text-purple-600">{statistics.rekam_medis_count}</div>
+                                        <div className="text-sm text-gray-600">Rekam Medis</div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Medical History Placeholder */}
+                {/* Medical History */}
                 <div className="bg-white rounded-lg border border-gray-200 p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-6">Riwayat Rekam Medis</h3>
-                    <div className="text-center py-8">
-                        <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-500">Riwayat rekam medis akan ditampilkan di sini</p>
-                        <p className="text-sm text-gray-400 mt-1">Fitur ini akan dikembangkan selanjutnya</p>
-                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-6">Riwayat Pendaftaran</h3>
+                    
+                    {riwayatPendaftaran && riwayatPendaftaran.length > 0 ? (
+                        <div className="space-y-4">
+                            {riwayatPendaftaran.map((item) => (
+                                <div key={item.id} className="border border-gray-200 rounded-lg p-4">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div>
+                                            <h4 className="font-medium text-gray-900">{item.kode_pendaftaran}</h4>
+                                            <p className="text-sm text-gray-600">{item.tanggal_pendaftaran}</p>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-2">
+                                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                                item.status_pendaftaran === 'selesai' 
+                                                    ? 'bg-green-100 text-green-800'
+                                                    : item.status_pendaftaran === 'sedang_diperiksa'
+                                                    ? 'bg-blue-100 text-blue-800'
+                                                    : 'bg-yellow-100 text-yellow-800'
+                                            }`}>
+                                                {item.status_pendaftaran?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
+                                            </span>
+                                            {item.rekam_medis && (
+                                                <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
+                                                    Ada Rekam Medis
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <label className="block text-gray-600 mb-1">Jenis Pemeriksaan</label>
+                                            <p className="text-gray-900 capitalize">{item.jenis_pemeriksaan?.replace('_', ' ') || 'Tidak diketahui'}</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-gray-600 mb-1">Keluhan</label>
+                                            <p className="text-gray-900">{item.keluhan || 'Tidak ada keluhan'}</p>
+                                        </div>
+                                        {item.rekam_medis && (
+                                            <>
+                                                <div>
+                                                    <label className="block text-gray-600 mb-1">Kode Rekam Medis</label>
+                                                    <p className="text-gray-900 font-mono">{item.rekam_medis.kode_rekam_medis}</p>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-gray-600 mb-1">Diagnosis</label>
+                                                    <p className="text-gray-900">{item.rekam_medis.diagnosa}</p>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-8">
+                            <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                            <p className="text-gray-500">Belum ada riwayat pendaftaran</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </AppLayout>

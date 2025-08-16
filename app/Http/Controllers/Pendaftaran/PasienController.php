@@ -126,7 +126,8 @@ class PasienController extends Controller
                     'id' => $pendaftaran->id,
                     'kode_pendaftaran' => $pendaftaran->kode_pendaftaran,
                     'tanggal_pendaftaran' => $pendaftaran->tanggal_pendaftaran->format('d/m/Y H:i'),
-                    'keluhan_utama' => $pendaftaran->keluhan_utama,
+                    'jenis_pemeriksaan' => $pendaftaran->jenis_pemeriksaan,
+                    'keluhan' => $pendaftaran->keluhan,
                     'status_pendaftaran' => $pendaftaran->status_pendaftaran,
                     'rekam_medis' => $pendaftaran->rekamMedis ? [
                         'id' => $pendaftaran->rekamMedis->id,

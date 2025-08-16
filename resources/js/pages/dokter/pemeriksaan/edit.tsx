@@ -5,10 +5,34 @@ import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
+    Pill,
     Save,
+    Search,
     Stethoscope,
+    Trash2,
     User
 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+
+interface Obat {
+    id: number;
+    kode_obat: string;
+    nama_obat: string;
+    nama_generik: string;
+    kategori: string;
+    satuan: string;
+    harga: number;
+    stok_tersedia: number;
+}
+
+interface ResepObat {
+    obat_id: number;
+    obat?: Obat;
+    jumlah: string;
+    dosis: string;
+    aturan_pakai: string;
+    keterangan: string;
+}
 
 interface Pasien {
     id: number;
@@ -56,23 +80,66 @@ interface Pendaftaran {
 
 interface Props {
     pendaftaran: Pendaftaran;
+    obatList: Obat[];
 }
 
 const getJenisKelaminBadge = (jenis_kelamin: string) => {
     return jenis_kelamin === 'laki-laki' ? 'Laki-laki' : 'Perempuan';
 };
 
-export default function Edit({ pendaftaran }: Props) {
+export default function Edit({ pendaftaran, obatList }: Props) {
+    const [searchObat, setSearchObat] = useState('');
+    const [selectedObatList, setSelectedObatList] = useState<ResepObat[]>([]);
+    
     const { data, setData, put, processing, errors } = useForm({
         keluhan_utama: pendaftaran.rekamMedis.keluhan_utama || '',
         riwayat_penyakit: pendaftaran.rekamMedis.riwayat_penyakit || '',
         pemeriksaan_fisik: pendaftaran.rekamMedis.pemeriksaan_fisik || '',
         diagnosis: pendaftaran.rekamMedis.diagnosis || '',
         tindakan: pendaftaran.rekamMedis.tindakan || '',
-        resep: pendaftaran.rekamMedis.resep || '',
+        resep_obat: [] as any[],
         catatan: pendaftaran.rekamMedis.catatan || '',
         anjuran: pendaftaran.rekamMedis.anjuran || '',
     });
+
+    // Filter obat berdasarkan pencarian
+    const filteredObat = useMemo(() => {
+        if (!searchObat) return [];
+        return obatList.filter(obat => 
+            obat.nama_obat.toLowerCase().includes(searchObat.toLowerCase()) ||
+            obat.nama_generik.toLowerCase().includes(searchObat.toLowerCase()) ||
+            obat.kode_obat.toLowerCase().includes(searchObat.toLowerCase())
+        );
+    }, [obatList, searchObat]);
+
+    const addObatToResep = (obat: Obat) => {
+        const newResepObat: ResepObat = {
+            obat_id: obat.id,
+            obat: obat,
+            jumlah: '1',
+            dosis: '',
+            aturan_pakai: '',
+            keterangan: ''
+        };
+        
+        const updatedResep = [...selectedObatList, newResepObat];
+        setSelectedObatList(updatedResep);
+        setData('resep_obat', updatedResep);
+        setSearchObat('');
+    };
+
+    const removeObatFromResep = (index: number) => {
+        const updatedResep = selectedObatList.filter((_, i) => i !== index);
+        setSelectedObatList(updatedResep);
+        setData('resep_obat', updatedResep);
+    };
+
+    const updateResepObat = (index: number, field: keyof ResepObat, value: string) => {
+        const updatedResep = [...selectedObatList];
+        updatedResep[index] = { ...updatedResep[index], [field]: value };
+        setSelectedObatList(updatedResep);
+        setData('resep_obat', updatedResep);
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -239,18 +306,130 @@ export default function Edit({ pendaftaran }: Props) {
                                         )}
                                     </div>
 
-                                    <div>
-                                        <Label htmlFor="resep">Resep</Label>
-                                        <textarea
-                                            id="resep"
-                                            value={data.resep}
-                                            onChange={(e) => setData('resep', e.target.value)}
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                            rows={4}
-                                            placeholder="Resep obat dan dosis..."
-                                        />
-                                        {errors.resep && (
-                                            <p className="mt-1 text-sm text-red-600">{errors.resep}</p>
+                                    {/* Resep Obat Section */}
+                                    <div className="border rounded-lg p-4 bg-green-50">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-sm font-semibold text-green-900 flex items-center gap-2">
+                                                <Pill className="w-4 h-4" />
+                                                Resep Obat
+                                            </h3>
+                                        </div>
+
+                                        {/* Search Obat */}
+                                        <div className="mb-4">
+                                            <Label htmlFor="search_obat">Cari Obat</Label>
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                                <input
+                                                    id="search_obat"
+                                                    type="text"
+                                                    placeholder="Cari nama obat, nama generik, atau kode obat..."
+                                                    value={searchObat}
+                                                    onChange={(e) => setSearchObat(e.target.value)}
+                                                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                                />
+                                            </div>
+                                            
+                                            {/* Dropdown hasil pencarian */}
+                                            {searchObat && filteredObat.length > 0 && (
+                                                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                                    {filteredObat.slice(0, 10).map((obat) => (
+                                                        <button
+                                                            key={obat.id}
+                                                            type="button"
+                                                            onClick={() => addObatToResep(obat)}
+                                                            className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                                                        >
+                                                            <div className="flex justify-between items-start">
+                                                                <div>
+                                                                    <p className="font-medium text-gray-900">{obat.nama_obat}</p>
+                                                                    <p className="text-sm text-gray-600">{obat.nama_generik}</p>
+                                                                    <p className="text-xs text-gray-500">
+                                                                        {obat.kode_obat} • {obat.kategori} • Stok: {obat.stok_tersedia} {obat.satuan}
+                                                                    </p>
+                                                                </div>
+                                                                <span className="text-sm font-medium text-green-600">
+                                                                    Rp {obat.harga.toLocaleString()}
+                                                                </span>
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Selected Obat List */}
+                                        {selectedObatList.length > 0 && (
+                                            <div className="space-y-4">
+                                                <Label>Obat yang Diresepkan</Label>
+                                                {selectedObatList.map((resepItem, index) => (
+                                                    <div key={index} className="border border-gray-200 rounded-md p-4 bg-white">
+                                                        <div className="flex justify-between items-start mb-3">
+                                                            <div>
+                                                                <h4 className="font-medium text-gray-900">{resepItem.obat?.nama_obat}</h4>
+                                                                <p className="text-sm text-gray-600">{resepItem.obat?.nama_generik}</p>
+                                                            </div>
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => removeObatFromResep(index)}
+                                                                className="text-red-600 border-red-300 hover:bg-red-50"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+                                                        
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                            <div>
+                                                                <Label>Jumlah</Label>
+                                                                <input
+                                                                    type="number"
+                                                                    min="1"
+                                                                    placeholder="1"
+                                                                    value={resepItem.jumlah}
+                                                                    onChange={(e) => updateResepObat(index, 'jumlah', e.target.value)}
+                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <Label>Dosis</Label>
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="3x1 tablet"
+                                                                    value={resepItem.dosis}
+                                                                    onChange={(e) => updateResepObat(index, 'dosis', e.target.value)}
+                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                                                />
+                                                            </div>
+                                                            <div className="md:col-span-2">
+                                                                <Label>Aturan Pakai</Label>
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="Sesudah makan"
+                                                                    value={resepItem.aturan_pakai}
+                                                                    onChange={(e) => updateResepObat(index, 'aturan_pakai', e.target.value)}
+                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                                                />
+                                                            </div>
+                                                            <div className="md:col-span-2">
+                                                                <Label>Keterangan (Opsional)</Label>
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="Keterangan tambahan..."
+                                                                    value={resepItem.keterangan}
+                                                                    onChange={(e) => updateResepObat(index, 'keterangan', e.target.value)}
+                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                        
+                                        {errors.resep_obat && (
+                                            <p className="text-sm text-red-600 mt-1">{errors.resep_obat}</p>
                                         )}
                                     </div>
 

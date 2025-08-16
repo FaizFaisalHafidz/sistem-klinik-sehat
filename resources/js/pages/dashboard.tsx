@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import {
     Activity,
     AlertTriangle,
@@ -47,12 +47,28 @@ interface User {
     foto_profil: string;
 }
 
+interface QuickAction {
+    title: string;
+    desc: string;
+    icon: any;
+    color: string;
+    href: string;
+}
+
 interface DashboardProps {
     user: User;
     role: string;
     stats: Stat[];
     title: string;
     subtitle: string;
+}
+
+interface PageProps extends Record<string, unknown> {
+    auth: {
+        user: {
+            roles: Array<{ name: string }>;
+        } | null;
+    };
 }
 
 const getIconComponent = (iconName: string) => {
@@ -65,36 +81,138 @@ const getIconComponent = (iconName: string) => {
 };
 
 export default function Dashboard({ user, role, stats, title, subtitle }: DashboardProps) {
+    // Get page props including auth data from HandleInertiaRequests middleware
+    const { props } = usePage<PageProps>();
+    
+    // Get user role from Spatie Laravel Permission (priority: spatie role > fallback role)
+    const userRole = props.auth?.user?.roles?.[0]?.name || role;
+
     // Quick Actions berdasarkan role
-    const getQuickActions = () => {
-        switch (role) {
+    const getQuickActions = (): QuickAction[] => {
+        switch (userRole) {
             case 'admin':
                 return [
-                    { title: 'Kelola Pengguna', desc: 'Tambah, edit, atau hapus pengguna sistem', icon: Users, color: 'bg-blue-500' },
-                    { title: 'Laporan Sistem', desc: 'Lihat laporan aktivitas dan statistik', icon: BarChart3, color: 'bg-green-500' },
-                    { title: 'Pengaturan', desc: 'Konfigurasi sistem dan pengaturan', icon: Settings, color: 'bg-purple-500' },
-                    { title: 'Backup Data', desc: 'Kelola backup dan restore data', icon: Package, color: 'bg-orange-500' }
+                    { 
+                        title: 'Kelola Pengguna', 
+                        desc: 'Tambah, edit, atau hapus pengguna sistem', 
+                        icon: Users, 
+                        color: 'bg-blue-500',
+                        href: '/admin/users'
+                    },
+                    { 
+                        title: 'Data Pasien', 
+                        desc: 'Manajemen data pasien', 
+                        icon: User, 
+                        color: 'bg-green-500',
+                        href: '/admin/pasien'
+                    },
+                    { 
+                        title: 'Data Pegawai', 
+                        desc: 'Manajemen data pegawai', 
+                        icon: UserPlus, 
+                        color: 'bg-purple-500',
+                        href: '/admin/pegawai'
+                    },
+                    { 
+                        title: 'Log Aktivitas', 
+                        desc: 'Monitor aktivitas sistem', 
+                        icon: Activity, 
+                        color: 'bg-orange-500',
+                        href: '/admin/log-aktivitas'
+                    }
                 ];
             case 'dokter':
                 return [
-                    { title: 'Lihat Antrian', desc: 'Cek daftar pasien yang menunggu', icon: Calendar, color: 'bg-blue-500' },
-                    { title: 'Rekam Medis', desc: 'Kelola catatan medis pasien', icon: FileText, color: 'bg-green-500' },
-                    { title: 'Resep Obat', desc: 'Buat dan kelola resep untuk pasien', icon: Pill, color: 'bg-purple-500' },
-                    { title: 'Riwayat Pasien', desc: 'Lihat riwayat pemeriksaan', icon: Eye, color: 'bg-orange-500' }
+                    { 
+                        title: 'Lihat Antrian', 
+                        desc: 'Cek daftar pasien yang menunggu', 
+                        icon: Calendar, 
+                        color: 'bg-blue-500',
+                        href: '/dokter/antrian'
+                    },
+                    { 
+                        title: 'Rekam Medis', 
+                        desc: 'Kelola catatan medis pasien', 
+                        icon: FileText, 
+                        color: 'bg-green-500',
+                        href: '/dokter/rekam-medis'
+                    },
+                    { 
+                        title: 'Resep Obat', 
+                        desc: 'Buat dan kelola resep untuk pasien', 
+                        icon: Pill, 
+                        color: 'bg-purple-500',
+                        href: '/dokter/resep'
+                    },
+                    { 
+                        title: 'Pemeriksaan', 
+                        desc: 'Kelola pemeriksaan pasien', 
+                        icon: Stethoscope, 
+                        color: 'bg-orange-500',
+                        href: '/dokter/pemeriksaan'
+                    }
                 ];
             case 'pendaftaran':
                 return [
-                    { title: 'Daftar Pasien Baru', desc: 'Registrasi pasien baru ke sistem', icon: UserPlus, color: 'bg-blue-500' },
-                    { title: 'Kelola Antrian', desc: 'Atur nomor antrian pasien', icon: Calendar, color: 'bg-green-500' },
-                    { title: 'Cari Pasien', desc: 'Pencarian data pasien', icon: Users, color: 'bg-purple-500' },
-                    { title: 'Jadwal Dokter', desc: 'Lihat jadwal praktik dokter', icon: Clock, color: 'bg-orange-500' }
+                    { 
+                        title: 'Daftar Pasien Baru', 
+                        desc: 'Registrasi pasien baru ke sistem', 
+                        icon: UserPlus, 
+                        color: 'bg-blue-500',
+                        href: '/pendaftaran/baru/create'
+                    },
+                    { 
+                        title: 'Kelola Antrian', 
+                        desc: 'Atur nomor antrian pasien', 
+                        icon: Calendar, 
+                        color: 'bg-green-500',
+                        href: '/pendaftaran/antrian'
+                    },
+                    { 
+                        title: 'Data Pasien', 
+                        desc: 'Kelola dan cari data pasien', 
+                        icon: Users, 
+                        color: 'bg-purple-500',
+                        href: '/pendaftaran/pasien'
+                    },
+                    { 
+                        title: 'Daftar Pemeriksaan', 
+                        desc: 'Daftar pemeriksaan untuk pasien lama', 
+                        icon: Stethoscope, 
+                        color: 'bg-orange-500',
+                        href: '/pendaftaran/pemeriksaan/create'
+                    }
                 ];
             case 'apoteker':
                 return [
-                    { title: 'Proses Resep', desc: 'Siapkan obat sesuai resep dokter', icon: Pill, color: 'bg-blue-500' },
-                    { title: 'Kelola Stok', desc: 'Update stok obat dan inventori', icon: Package, color: 'bg-green-500' },
-                    { title: 'Laporan Obat', desc: 'Laporan stok dan penjualan obat', icon: BarChart3, color: 'bg-purple-500' },
-                    { title: 'Supplier', desc: 'Kelola data supplier obat', icon: Users, color: 'bg-orange-500' }
+                    { 
+                        title: 'Kelola Obat', 
+                        desc: 'Manajemen data obat dan stok', 
+                        icon: Pill, 
+                        color: 'bg-blue-500',
+                        href: '/admin/obat' // Temporary: Use admin route until apoteker routes available
+                    },
+                    { 
+                        title: 'Stok Obat', 
+                        desc: 'Monitor dan kelola stok obat', 
+                        icon: Package, 
+                        color: 'bg-green-500',
+                        href: '/admin/obat' // Temporary
+                    },
+                    { 
+                        title: 'Laporan Farmasi', 
+                        desc: 'Laporan stok dan distribusi obat', 
+                        icon: BarChart3, 
+                        color: 'bg-purple-500',
+                        href: '/admin/laporan' // Temporary
+                    },
+                    { 
+                        title: 'Resep Masuk', 
+                        desc: 'Daftar resep yang perlu diproses', 
+                        icon: FileText, 
+                        color: 'bg-orange-500',
+                        href: '/dokter/resep' // Temporary
+                    }
                 ];
             default:
                 return [];
@@ -132,7 +250,7 @@ export default function Dashboard({ user, role, stats, title, subtitle }: Dashbo
                                     {user.nama_lengkap}
                                 </p>
                                 <p className="text-xs text-blue-200 capitalize bg-white/20 px-2 py-1 rounded-full">
-                                    {role}
+                                    {userRole}
                                 </p>
                             </div>
                             <img
@@ -192,14 +310,19 @@ export default function Dashboard({ user, role, stats, title, subtitle }: Dashbo
                                 Aksi Cepat
                             </h3>
                             <span className="text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
-                                {role.charAt(0).toUpperCase() + role.slice(1)}
+                                {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
                             </span>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {quickActions.map((action, index) => {
                                 const IconComponent = action.icon;
                                 return (
-                                    <button key={index} className="group p-4 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200 text-left">
+                                    <Link 
+                                        key={index} 
+                                        href={action.href}
+                                        preserveState
+                                        className="group p-4 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200 text-left"
+                                    >
                                         <div className="flex items-start justify-between">
                                             <div className="flex-1">
                                                 <div className="flex items-center mb-2">
@@ -216,7 +339,7 @@ export default function Dashboard({ user, role, stats, title, subtitle }: Dashbo
                                             </div>
                                             <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transform group-hover:translate-x-1 transition-all" />
                                         </div>
-                                    </button>
+                                    </Link>
                                 );
                             })}
                         </div>
@@ -287,7 +410,7 @@ export default function Dashboard({ user, role, stats, title, subtitle }: Dashbo
                 </div>
 
                 {/* Role-specific Additional Content */}
-                {role === 'admin' && (
+                {userRole === 'admin' && (
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                             <BarChart3 className="w-5 h-5 mr-2 text-purple-600" />

@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class LaporanController extends Controller
 {
@@ -159,14 +160,21 @@ class LaporanController extends Controller
     private function getRekamMedisStats($tanggalMulai, $tanggalAkhir)
     {
         $totalRekamMedis = RekamMedis::whereBetween('created_at', [$tanggalMulai, $tanggalAkhir . ' 23:59:59'])->count();
-        $rekamMedisTerbaru = RekamMedis::whereBetween('created_at', [$tanggalMulai, $tanggalAkhir . ' 23:59:59'])
+        $rekamMedisHariIni = RekamMedis::whereBetween('created_at', [$tanggalMulai, $tanggalAkhir . ' 23:59:59'])
             ->whereDate('created_at', Carbon::today())->count();
+        $rekamMedisBulanIni = RekamMedis::whereBetween('created_at', [$tanggalMulai, $tanggalAkhir . ' 23:59:59'])
+            ->whereMonth('created_at', Carbon::now()->month)
+            ->whereYear('created_at', Carbon::now()->year)
+            ->count();
+        $totalPasienUnik = RekamMedis::whereBetween('created_at', [$tanggalMulai, $tanggalAkhir . ' 23:59:59'])
+            ->distinct('pasien_id')
+            ->count('pasien_id');
 
         // Top diagnoses
-        $topDiagnoses = RekamMedis::select('diagnosis', DB::raw('COUNT(*) as total'))
+        $topDiagnoses = RekamMedis::select('diagnosa', DB::raw('COUNT(*) as total'))
             ->whereBetween('created_at', [$tanggalMulai, $tanggalAkhir . ' 23:59:59'])
-            ->whereNotNull('diagnosis')
-            ->groupBy('diagnosis')
+            ->whereNotNull('diagnosa')
+            ->groupBy('diagnosa')
             ->orderBy('total', 'desc')
             ->limit(5)
             ->get();
@@ -183,7 +191,9 @@ class LaporanController extends Controller
 
         return [
             'total_rekam_medis' => $totalRekamMedis,
-            'rekam_medis_hari_ini' => $rekamMedisTerbaru,
+            'rekam_medis_hari_ini' => $rekamMedisHariIni,
+            'rekam_medis_bulan_ini' => $rekamMedisBulanIni,
+            'total_pasien_unik' => $totalPasienUnik,
             'top_diagnoses' => $topDiagnoses,
             'chart_data' => $chartData,
         ];
@@ -309,14 +319,46 @@ class LaporanController extends Controller
 
     private function exportToPdf($data, $stats, $jenisLaporan, $tanggalMulai, $tanggalAkhir, $filename)
     {
-        // For now, return JSON data (implement PDF generation later)
-        return response()->json([
-            'message' => 'PDF export functionality will be implemented',
+        $viewData = [
             'data' => $data,
             'stats' => $stats,
-            'type' => $jenisLaporan,
-            'period' => "$tanggalMulai to $tanggalAkhir"
-        ]);
+            'jenisLaporan' => $jenisLaporan,
+            'tanggalMulai' => $tanggalMulai,
+            'tanggalAkhir' => $tanggalAkhir,
+            'judul' => $this->getJudulLaporan($jenisLaporan),
+            'periode' => Carbon::parse($tanggalMulai)->format('d M Y') . ' - ' . Carbon::parse($tanggalAkhir)->format('d M Y'),
+        ];
+
+        try {
+            $pdf = Pdf::loadView('laporan.pdf.' . $jenisLaporan, $viewData);
+            $pdf->setPaper('A4', 'portrait');
+            
+            // Set proper headers for PDF download
+            return response($pdf->output(), 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Cache-Control' => 'no-cache, no-store, must-revalidate',
+                'Pragma' => 'no-cache',
+                'Expires' => '0'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Gagal membuat PDF: ' . $e->getMessage(),
+                'message' => 'Terjadi kesalahan saat membuat laporan PDF'
+            ], 500);
+        }
+    }
+
+    private function getJudulLaporan($jenisLaporan)
+    {
+        $judulMap = [
+            'pendaftaran' => 'Laporan Pendaftaran Pasien',
+            'antrian' => 'Laporan Antrian Pasien',
+            'rekam_medis' => 'Laporan Rekam Medis',
+            'pasien' => 'Laporan Data Pasien'
+        ];
+        
+        return $judulMap[$jenisLaporan] ?? 'Laporan';
     }
 
     private function exportToExcel($data, $stats, $jenisLaporan, $tanggalMulai, $tanggalAkhir, $filename)

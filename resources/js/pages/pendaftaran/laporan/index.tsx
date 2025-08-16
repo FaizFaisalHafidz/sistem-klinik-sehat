@@ -106,10 +106,16 @@ export default function Index({ stats, data, filters }: Props) {
     };
 
     const handleExport = (format: string) => {
-        router.post(route('pendaftaran.laporan.export'), {
+        const params = new URLSearchParams({
             ...formData,
             format: format,
         });
+        
+        // Create download URL
+        const url = `${route('pendaftaran.laporan.export')}?${params.toString()}`;
+        
+        // Open in new window for download
+        window.open(url, '_blank');
     };
 
     const getStatsCards = () => {

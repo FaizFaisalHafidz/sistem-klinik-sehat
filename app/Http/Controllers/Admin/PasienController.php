@@ -57,7 +57,7 @@ class PasienController extends Controller
                 'alergi' => $p->alergi,
                 'created_at' => $p->created_at->format('d M Y H:i'),
                 'updated_at' => $p->updated_at->format('d M Y H:i'),
-                'umur' => $p->tanggal_lahir ? now()->diffInYears($p->tanggal_lahir) : null,
+                'umur' => $p->tanggal_lahir ? $p->tanggal_lahir->age : null,
             ];
         });
 
@@ -112,6 +112,7 @@ class PasienController extends Controller
             'kode_pasien' => $validated['no_rm'],
             'nik' => $validated['nik'],
             'nama_lengkap' => $validated['nama_lengkap'],
+            'tempat_lahir' => $validated['tempat_lahir'],
             'tanggal_lahir' => $validated['tanggal_lahir'],
             'jenis_kelamin' => $validated['jenis_kelamin'],
             'alamat' => $validated['alamat'],
@@ -134,6 +135,9 @@ class PasienController extends Controller
      */
     public function show(Pasien $pasien)
     {
+        // Load relasi yang diperlukan
+        $pasien->load(['pendaftaran.rekamMedis']);
+
         $pasienData = [
             'id' => $pasien->id,
             'no_rm' => $pasien->kode_pasien,
@@ -149,13 +153,47 @@ class PasienController extends Controller
             'status_pernikahan' => $pasien->status_perkawinan,
             'kontak_darurat' => $pasien->kontak_darurat,
             'alergi' => $pasien->alergi,
-            'created_at' => $pasien->created_at->format('d M Y H:i'),
-            'updated_at' => $pasien->updated_at->format('d M Y H:i'),
-            'umur' => $pasien->tanggal_lahir ? now()->diffInYears($pasien->tanggal_lahir) : null,
+            'created_at' => $pasien->created_at->format('Y-m-d H:i:s'),
+            'updated_at' => $pasien->updated_at->format('Y-m-d H:i:s'),
+            'umur' => $pasien->tanggal_lahir ? $pasien->tanggal_lahir->age : null,
         ];
+
+        // Riwayat pendaftaran
+        $riwayatPendaftaran = $pasien->pendaftaran()
+            ->with(['rekamMedis'])
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($pendaftaran) {
+                return [
+                    'id' => $pendaftaran->id,
+                    'kode_pendaftaran' => $pendaftaran->kode_pendaftaran,
+                    'tanggal_pendaftaran' => $pendaftaran->tanggal_pendaftaran->format('d/m/Y H:i'),
+                    'jenis_pemeriksaan' => $pendaftaran->jenis_pemeriksaan,
+                    'keluhan' => $pendaftaran->keluhan,
+                    'status_pendaftaran' => $pendaftaran->status_pendaftaran,
+                    'rekam_medis' => $pendaftaran->rekamMedis ? [
+                        'id' => $pendaftaran->rekamMedis->id,
+                        'kode_rekam_medis' => $pendaftaran->rekamMedis->kode_rekam_medis,
+                        'diagnosa' => $pendaftaran->rekamMedis->diagnosa,
+                        'status_rekam_medis' => $pendaftaran->rekamMedis->status_rekam_medis,
+                    ] : null,
+                ];
+            });
+
+        // Statistik pasien
+        $totalKunjungan = $pasien->pendaftaran()->count();
+        $kunjunganSelesai = $pasien->pendaftaran()->where('status_pendaftaran', 'selesai')->count();
+        $rekamMedisCount = $pasien->rekamMedis()->count();
 
         return Inertia::render('admin/pasien/show', [
             'pasien' => $pasienData,
+            'riwayatPendaftaran' => $riwayatPendaftaran,
+            'statistics' => [
+                'total_kunjungan' => $totalKunjungan,
+                'kunjungan_selesai' => $kunjunganSelesai,
+                'rekam_medis_count' => $rekamMedisCount,
+            ],
         ]);
     }
 
@@ -212,6 +250,7 @@ class PasienController extends Controller
             'kode_pasien' => $validated['no_rm'],
             'nik' => $validated['nik'],
             'nama_lengkap' => $validated['nama_lengkap'],
+            'tempat_lahir' => $validated['tempat_lahir'],
             'tanggal_lahir' => $validated['tanggal_lahir'],
             'jenis_kelamin' => $validated['jenis_kelamin'],
             'alamat' => $validated['alamat'],

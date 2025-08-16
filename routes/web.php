@@ -95,12 +95,12 @@ Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
         
         // Laporan routes
         Route::get('laporan', [PendaftaranLaporanController::class, 'index'])->name('laporan.index');
-        Route::post('laporan/export', [PendaftaranLaporanController::class, 'export'])->name('laporan.export');
+        Route::get('laporan/export', [PendaftaranLaporanController::class, 'export'])->name('laporan.export');
     });
 });
 
 // Dokter Routes
-Route::middleware(['auth', 'role:dokter'])->prefix('dokter')->name('dokter.')->group(function () {
+Route::middleware(['auth', 'verified', 'active.user', 'role:dokter'])->prefix('dokter')->name('dokter.')->group(function () {
     // Antrian routes for doctor
     Route::get('antrian', [DokterAntrianController::class, 'index'])->name('antrian.index');
     Route::get('antrian/{id}', [DokterAntrianController::class, 'show'])->name('antrian.show');
