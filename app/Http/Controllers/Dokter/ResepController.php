@@ -419,6 +419,40 @@ class ResepController extends Controller
         ]);
     }
 
+    public function toggleStatus($id)
+    {
+        // Get pegawai record for current user
+        $pegawai = \App\Models\Pegawai::where('user_id', Auth::id())->first();
+        if (!$pegawai) {
+            return redirect()->route('dashboard')
+                ->with('error', 'Data pegawai tidak ditemukan.');
+        }
+
+        $resep = Resep::where('dokter_id', $pegawai->id)->findOrFail($id);
+
+        DB::beginTransaction();
+        try {
+            // Toggle status dari belum_diambil ke sudah_diambil atau sebaliknya
+            if ($resep->status_resep === 'belum_diambil') {
+                $resep->update(['status_resep' => 'sudah_diambil']);
+                $message = 'Status resep berhasil diubah menjadi "Sudah Diambil".';
+            } elseif ($resep->status_resep === 'sudah_diambil') {
+                $resep->update(['status_resep' => 'belum_diambil']);
+                $message = 'Status resep berhasil diubah menjadi "Belum Diambil".';
+            } else {
+                throw new \Exception('Resep yang dibatalkan tidak dapat diubah statusnya.');
+            }
+
+            DB::commit();
+
+            return redirect()->back()->with('success', $message);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
     private function generateKodeResep()
     {
         $tanggal = Carbon::now()->format('Ymd');

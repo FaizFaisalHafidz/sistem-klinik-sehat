@@ -131,6 +131,7 @@ Route::middleware(['auth', 'active.user'])->group(function () {
         Route::get('resep/{id}', [DokterResepController::class, 'show'])->name('resep.show');
         Route::get('resep/{id}/edit', [DokterResepController::class, 'edit'])->name('resep.edit');
         Route::put('resep/{id}', [DokterResepController::class, 'update'])->name('resep.update');
+        Route::patch('resep/{id}/toggle-status', [DokterResepController::class, 'toggleStatus'])->name('resep.toggle-status');
         Route::delete('resep/{id}', [DokterResepController::class, 'destroy'])->name('resep.destroy');
         Route::get('resep/{id}/cetak', [DokterResepController::class, 'cetak'])->name('resep.cetak');
 

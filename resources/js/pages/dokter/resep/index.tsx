@@ -6,6 +6,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router } from '@inertiajs/react';
 import {
     Calendar,
+    CheckCircle,
     Eye,
     FileText,
     Pill,
@@ -116,6 +117,20 @@ export default function Index({ resep, stats, filters }: Props) {
             preserveState: true,
             replace: true,
         });
+    };
+
+    const handleToggleStatus = (id: number, currentStatus: string) => {
+        const action = currentStatus === 'belum_diambil' ? 'menandai sudah diambil' : 'menandai belum diambil';
+        
+        if (confirm(`Apakah Anda yakin ingin ${action} resep ini?`)) {
+            router.patch(route('dokter.resep.toggle-status', id), {}, {
+                preserveState: true,
+                onSuccess: () => {
+                    // Refresh the page to show updated data
+                    window.location.reload();
+                }
+            });
+        }
     };
 
     useEffect(() => {
@@ -366,6 +381,22 @@ export default function Index({ resep, stats, filters }: Props) {
                                                     </Button>
                                                 </Link>
                                                 
+                                                {item.status_resep !== 'dibatalkan' && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant={item.status_resep === 'belum_diambil' ? "default" : "outline"}
+                                                        className={`w-full ${
+                                                            item.status_resep === 'belum_diambil' 
+                                                                ? 'bg-green-600 hover:bg-green-700 text-white' 
+                                                                : 'border-orange-500 text-orange-700 hover:bg-orange-50'
+                                                        }`}
+                                                        onClick={() => handleToggleStatus(item.id, item.status_resep)}
+                                                    >
+                                                        <CheckCircle className="w-4 h-4 mr-2" />
+                                                        {item.status_resep === 'belum_diambil' ? 'Tandai Diambil' : 'Tandai Belum Diambil'}
+                                                    </Button>
+                                                )}
+
                                                 {item.status_resep === 'belum_diambil' && (
                                                     <Link href={route('dokter.resep.edit', item.id)}>
                                                         <Button size="sm" variant="outline" className="w-full">
