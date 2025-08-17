@@ -98,7 +98,7 @@ Route::middleware(['auth', 'active.user'])->group(function () {
         Route::get('laporan/export', [PendaftaranLaporanController::class, 'export'])->name('laporan.export');
     });
 
-    Route::middleware(['role:dokter'])->prefix('dokter')->name('dokter.')->group(function () {
+    Route::prefix('dokter')->name('dokter.')->group(function () {
         // Antrian routes for doctor
         Route::get('antrian', [DokterAntrianController::class, 'index'])->name('antrian.index');
         Route::get('antrian/{id}', [DokterAntrianController::class, 'show'])->name('antrian.show');

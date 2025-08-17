@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Pendaftaran;
 use App\Models\RekamMedis;
 use App\Models\Pasien;
+use App\Models\Resep;
+use App\Models\DetailResep;
+use App\Models\Obat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -74,6 +77,14 @@ class PemeriksaanController extends Controller
             'antrian'
         ])->findOrFail($id);
 
+        // Load resep data jika ada
+        $resep = null;
+        if ($pendaftaran->rekamMedis) {
+            $resep = Resep::with(['detailResep.obat'])
+                ->where('rekam_medis_id', $pendaftaran->rekamMedis->id)
+                ->first();
+        }
+
         // Format data untuk tampilan
         $pendaftaran->created_at_formatted = $pendaftaran->created_at->format('d M Y, H:i');
         $pendaftaran->tanggal_pendaftaran_formatted = $pendaftaran->tanggal_pendaftaran->format('d M Y');
@@ -83,6 +94,7 @@ class PemeriksaanController extends Controller
 
         return Inertia::render('dokter/pemeriksaan/show', [
             'pendaftaran' => $pendaftaran,
+            'resep' => $resep,
         ]);
     }
 
@@ -147,6 +159,35 @@ class PemeriksaanController extends Controller
             ]);
 
             Log::info('Validasi data berhasil', ['pendaftaran_id' => $request->pendaftaran_id]);
+
+            // Validasi stok obat jika ada resep
+            if (!empty($request->resep_obat)) {
+                foreach ($request->resep_obat as $index => $resepItem) {
+                    $obat = Obat::find($resepItem['obat_id']);
+                    if (!$obat) {
+                        Log::error('Obat tidak ditemukan', [
+                            'obat_id' => $resepItem['obat_id'],
+                            'index' => $index
+                        ]);
+                        return redirect()->back()
+                            ->with('error', 'Obat tidak ditemukan.')
+                            ->withInput();
+                    }
+
+                    if ($obat->stok_tersedia < $resepItem['jumlah']) {
+                        Log::warning('Stok obat tidak mencukupi', [
+                            'obat_id' => $obat->id,
+                            'nama_obat' => $obat->nama_obat,
+                            'stok_tersedia' => $obat->stok_tersedia,
+                            'jumlah_diminta' => $resepItem['jumlah']
+                        ]);
+                        return redirect()->back()
+                            ->with('error', "Stok obat {$obat->nama_obat} tidak mencukupi. Stok tersedia: {$obat->stok_tersedia}")
+                            ->withInput();
+                    }
+                }
+                Log::info('Validasi stok obat berhasil');
+            }
 
             DB::beginTransaction();
 
@@ -248,6 +289,62 @@ class PemeriksaanController extends Controller
                 'pasien_id' => $rekamMedis->pasien_id
             ]);
 
+            // Simpan resep obat ke tabel resep dan detail_resep jika ada
+            if (!empty($request->resep_obat)) {
+                Log::info('Memulai penyimpanan resep ke database', [
+                    'rekam_medis_id' => $rekamMedis->id,
+                    'jumlah_obat' => count($request->resep_obat)
+                ]);
+
+                // Buat resep baru
+                $resep = new Resep([
+                    'pasien_id' => $pendaftaran->pasien_id,
+                    'dokter_id' => $pegawai->id,
+                    'rekam_medis_id' => $rekamMedis->id,
+                    'tanggal_resep' => Carbon::now(),
+                    'catatan_resep' => $request->catatan,
+                    'status_resep' => 'belum_diambil',
+                ]);
+
+                // Generate kode resep
+                $resep->kode_resep = $resep->generateKodeResep();
+                $resep->save();
+
+                Log::info('Resep berhasil dibuat', [
+                    'resep_id' => $resep->id,
+                    'kode_resep' => $resep->kode_resep
+                ]);
+
+                // Simpan detail resep
+                foreach ($request->resep_obat as $index => $resepItem) {
+                    $obat = Obat::find($resepItem['obat_id']);
+                    
+                    $detailResep = new DetailResep([
+                        'resep_id' => $resep->id,
+                        'obat_id' => $obat->id,
+                        'jumlah' => $resepItem['jumlah'],
+                        'aturan_pakai' => $resepItem['dosis'] . ' - ' . $resepItem['aturan_pakai'],
+                        'harga_satuan' => $obat->harga,
+                        'keterangan' => $resepItem['keterangan'] ?? null,
+                    ]);
+
+                    $detailResep->save();
+
+                    Log::debug('Detail resep berhasil disimpan', [
+                        'detail_resep_id' => $detailResep->id,
+                        'obat_id' => $obat->id,
+                        'nama_obat' => $obat->nama_obat,
+                        'jumlah' => $resepItem['jumlah'],
+                        'harga_satuan' => $obat->harga
+                    ]);
+                }
+
+                Log::info('Semua detail resep berhasil disimpan', [
+                    'resep_id' => $resep->id,
+                    'jumlah_detail' => count($request->resep_obat)
+                ]);
+            }
+
             // Update status pendaftaran menjadi selesai
             $pendaftaran->update(['status_pendaftaran' => 'selesai']);
 
@@ -299,13 +396,19 @@ class PemeriksaanController extends Controller
         }
 
         // Hanya bisa edit rekam medis yang dibuat oleh dokter yang sama
-        if ($pendaftaran->rekamMedis->dokter_id !== Auth::id()) {
+        $pegawai = \App\Models\Pegawai::where('user_id', Auth::id())->first();
+        if (!$pegawai || $pendaftaran->rekamMedis->dokter_id !== $pegawai->id) {
             return redirect()->route('dokter.pemeriksaan.index')
                 ->with('error', 'Anda tidak memiliki akses untuk mengedit rekam medis ini.');
         }
 
+        // Get existing resep data
+        $existingResep = Resep::with(['detailResep.obat'])
+            ->where('rekam_medis_id', $pendaftaran->rekamMedis->id)
+            ->first();
+
         // Get list obat yang aktif dan tersedia
-        $obatList = \App\Models\Obat::active()
+        $obatList = Obat::active()
             ->where('stok_tersedia', '>', 0)
             ->select('id', 'kode_obat', 'nama_obat', 'nama_generik', 'kategori', 'satuan', 'harga', 'stok_tersedia')
             ->orderBy('nama_obat')
@@ -314,6 +417,7 @@ class PemeriksaanController extends Controller
         return Inertia::render('dokter/pemeriksaan/edit', [
             'pendaftaran' => $pendaftaran,
             'obatList' => $obatList,
+            'existingResep' => $existingResep,
         ]);
     }
 
@@ -344,8 +448,7 @@ class PemeriksaanController extends Controller
 
             Log::info('Validasi data update berhasil', ['pendaftaran_id' => $id]);
 
-            DB::beginTransaction();
-
+            // Get pendaftaran data for validation
             $pendaftaran = Pendaftaran::with('rekamMedis')->findOrFail($id);
 
             if (!$pendaftaran->rekamMedis) {
@@ -353,6 +456,49 @@ class PemeriksaanController extends Controller
                 return redirect()->route('dokter.pemeriksaan.index')
                     ->with('error', 'Rekam medis tidak ditemukan.');
             }
+
+            // Validasi stok obat jika ada resep (untuk obat baru atau perubahan jumlah)
+            if (!empty($request->resep_obat)) {
+                foreach ($request->resep_obat as $index => $resepItem) {
+                    $obat = Obat::find($resepItem['obat_id']);
+                    if (!$obat) {
+                        Log::error('Obat tidak ditemukan saat update', [
+                            'obat_id' => $resepItem['obat_id'],
+                            'index' => $index
+                        ]);
+                        return redirect()->back()
+                            ->with('error', 'Obat tidak ditemukan.')
+                            ->withInput();
+                    }
+
+                    // Cek stok tersedia (tidak termasuk yang sudah diresepkan sebelumnya)
+                    $existingDetail = DetailResep::whereHas('resep', function($q) use ($pendaftaran) {
+                            $q->where('rekam_medis_id', $pendaftaran->rekamMedis->id);
+                        })
+                        ->where('obat_id', $obat->id)
+                        ->first();
+                    
+                    $stokTersedia = $obat->stok_tersedia;
+                    if ($existingDetail) {
+                        $stokTersedia += $existingDetail->jumlah; // Tambah kembali stok yang sudah digunakan
+                    }
+
+                    if ($stokTersedia < $resepItem['jumlah']) {
+                        Log::warning('Stok obat tidak mencukupi saat update', [
+                            'obat_id' => $obat->id,
+                            'nama_obat' => $obat->nama_obat,
+                            'stok_tersedia' => $stokTersedia,
+                            'jumlah_diminta' => $resepItem['jumlah']
+                        ]);
+                        return redirect()->back()
+                            ->with('error', "Stok obat {$obat->nama_obat} tidak mencukupi. Stok tersedia: {$stokTersedia}")
+                            ->withInput();
+                    }
+                }
+                Log::info('Validasi stok obat update berhasil');
+            }
+
+            DB::beginTransaction();
 
             // Hanya bisa edit rekam medis yang dibuat oleh dokter yang sama
             $pegawai = \App\Models\Pegawai::where('user_id', Auth::id())->first();
@@ -442,6 +588,87 @@ class PemeriksaanController extends Controller
                     'catatan_dokter_changed' => $oldValues['catatan_dokter'] !== $request->catatan,
                 ]
             ]);
+
+            // Update resep obat jika ada perubahan
+            $existingResep = Resep::where('rekam_medis_id', $pendaftaran->rekamMedis->id)->first();
+            
+            if (!empty($request->resep_obat)) {
+                Log::info('Memulai update resep obat', [
+                    'rekam_medis_id' => $pendaftaran->rekamMedis->id,
+                    'jumlah_obat_baru' => count($request->resep_obat),
+                    'existing_resep_id' => $existingResep->id ?? null
+                ]);
+
+                if ($existingResep) {
+                    // Delete existing detail resep (stok akan dikembalikan otomatis oleh model)
+                    $existingResep->detailResep()->delete();
+                    
+                    // Update resep header
+                    $existingResep->update([
+                        'tanggal_resep' => Carbon::now(),
+                        'catatan_resep' => $request->catatan,
+                        'status_resep' => 'belum_diambil',
+                    ]);
+
+                    Log::info('Existing resep berhasil diupdate', [
+                        'resep_id' => $existingResep->id,
+                        'kode_resep' => $existingResep->kode_resep
+                    ]);
+                } else {
+                    // Buat resep baru
+                    $existingResep = new Resep([
+                        'pasien_id' => $pendaftaran->pasien_id,
+                        'dokter_id' => $pegawai->id,
+                        'rekam_medis_id' => $pendaftaran->rekamMedis->id,
+                        'tanggal_resep' => Carbon::now(),
+                        'catatan_resep' => $request->catatan,
+                        'status_resep' => 'belum_diambil',
+                    ]);
+
+                    $existingResep->kode_resep = $existingResep->generateKodeResep();
+                    $existingResep->save();
+
+                    Log::info('Resep baru berhasil dibuat saat update', [
+                        'resep_id' => $existingResep->id,
+                        'kode_resep' => $existingResep->kode_resep
+                    ]);
+                }
+
+                // Simpan detail resep baru
+                foreach ($request->resep_obat as $index => $resepItem) {
+                    $obat = Obat::find($resepItem['obat_id']);
+                    
+                    $detailResep = new DetailResep([
+                        'resep_id' => $existingResep->id,
+                        'obat_id' => $obat->id,
+                        'jumlah' => $resepItem['jumlah'],
+                        'aturan_pakai' => $resepItem['dosis'] . ' - ' . $resepItem['aturan_pakai'],
+                        'harga_satuan' => $obat->harga,
+                        'keterangan' => $resepItem['keterangan'] ?? null,
+                    ]);
+
+                    $detailResep->save();
+
+                    Log::debug('Detail resep update berhasil disimpan', [
+                        'detail_resep_id' => $detailResep->id,
+                        'obat_id' => $obat->id,
+                        'nama_obat' => $obat->nama_obat,
+                        'jumlah' => $resepItem['jumlah']
+                    ]);
+                }
+
+                Log::info('Semua detail resep update berhasil disimpan', [
+                    'resep_id' => $existingResep->id,
+                    'jumlah_detail' => count($request->resep_obat)
+                ]);
+            } else if ($existingResep) {
+                // Jika tidak ada resep obat baru tapi ada resep lama, hapus resep lama
+                Log::info('Menghapus resep existing karena tidak ada resep baru', [
+                    'resep_id' => $existingResep->id
+                ]);
+                $existingResep->detailResep()->delete(); // Stok dikembalikan otomatis
+                $existingResep->delete();
+            }
 
             DB::commit();
 

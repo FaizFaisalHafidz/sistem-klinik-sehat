@@ -111,7 +111,7 @@ export default function Cetak({ resep }: Props) {
                         </div>
                     </div>
                     <div className="text-sm text-gray-600 space-y-1">
-                        <p>Jl. Sehat No. 123, Kota Sehat 12345</p>
+                        <p>Jl. Mahmud No.93, Mekar Rahayu, Kec. Margaasih, Kabupaten Bandung, Jawa Barat 40218</p>
                         <p>Telp: (021) 1234-5678 | Email: info@kliniksehat.com</p>
                         <p>SIP: 123/SIP/2024 | Izin Praktik: 456/IP/2024</p>
                     </div>

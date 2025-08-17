@@ -242,8 +242,8 @@
         
         <div class="clinic-info">
             <div class="clinic-address">
-                Jl. Kesehatan Raya No. 123, Kelurahan Sehat<br>
-                Kecamatan Sejahtera, Kota Bahagia 12345
+                Jl. Mahmud No.93, Mekar Rahayu, Kec. Margaasih<br>
+                Kabupaten Bandung, Jawa Barat 40218
             </div>
             
             <div class="divider"></div>

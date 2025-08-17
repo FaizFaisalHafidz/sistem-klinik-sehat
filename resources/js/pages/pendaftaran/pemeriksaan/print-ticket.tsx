@@ -83,6 +83,7 @@ export default function PrintTicket({ pendaftaran }: Props) {
                     <div className="text-center mb-6">
                         <h1 className="text-xl font-bold text-gray-900 mb-1">KLINIK SEHAT</h1>
                         <p className="text-sm text-gray-600 mb-3">Tiket Antrian Pemeriksaan</p>
+                        <p className="text-xs text-gray-500">Jl. Mahmud No.93, Mekar Rahayu, Kec. Margaasih, Kabupaten Bandung, Jawa Barat 40218</p>
                         <div className="border-b border-gray-300"></div>
                     </div>
 

@@ -113,7 +113,7 @@ export default function PrintTicket({ antrian }: Props) {
                                     KLINIK KESEHATAN
                                 </h2>
                                 <p className="text-sm text-gray-600 print:text-xs">
-                                    Jl. Contoh No. 123, Kota ABC
+                                    Jl. Mahmud No.93, Mekar Rahayu, Kec. Margaasih, Kabupaten Bandung, Jawa Barat 40218
                                 </p>
                                 <p className="text-sm text-gray-600 print:text-xs">
                                     Telp: (021) 1234-5678

@@ -57,7 +57,7 @@ interface RekamMedis {
     catatan_dokter: string;
     tanggal_kontrol: string;
     status_rekam_medis: string;
-    tanda_vital: TandaVital | null;
+    tanda_vital: string | TandaVital | null; // Could be JSON string or parsed object
     pasien: Pasien;
     dokter: Dokter;
     pendaftaran: Pendaftaran;
@@ -83,6 +83,81 @@ const getJenisKelaminBadge = (jenis_kelamin: string) => {
 };
 
 export default function Show({ rekamMedis }: Props) {
+    // Parse tanda_vital dari JSON string jika diperlukan
+    const getTandaVital = (): TandaVital | null => {
+        if (!rekamMedis.tanda_vital) return null;
+        
+        if (typeof rekamMedis.tanda_vital === 'string') {
+            try {
+                return JSON.parse(rekamMedis.tanda_vital);
+            } catch (error) {
+                console.error('Error parsing tanda_vital JSON:', error);
+                return null;
+            }
+        }
+        
+        return rekamMedis.tanda_vital as TandaVital;
+    };
+
+    // Fungsi untuk membersihkan unit dari nilai
+    const cleanValue = (value: string | undefined): string => {
+        if (!value) return '-';
+        
+        // Hapus unit seperti 'cm', 'kg', dll dan trim whitespace
+        return value.replace(/\s*(cm|kg|°C|mmHg)\s*$/i, '').trim() || '-';
+    };
+
+    // Fungsi untuk mendapatkan unit dari nilai
+    const getUnit = (value: string | undefined, defaultUnit: string): string => {
+        if (!value) return defaultUnit;
+        
+        // Cek apakah ada unit dalam value
+        if (value.match(/cm$/i)) return 'cm';
+        if (value.match(/kg$/i)) return 'kg';
+        if (value.match(/°C$/i)) return '°C';
+        if (value.match(/mmHg$/i)) return 'mmHg';
+        
+        return defaultUnit;
+    };
+
+    // Fungsi untuk format tanggal lahir
+    const formatTanggalLahir = (tanggalLahir: string): string => {
+        try {
+            const date = new Date(tanggalLahir);
+            return date.toLocaleDateString('id-ID', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+        } catch (error) {
+            console.error('Error formatting tanggal lahir:', error);
+            return tanggalLahir;
+        }
+    };
+
+    // Fungsi untuk menghitung umur yang benar
+    const calculateAge = (tanggalLahir: string): number => {
+        try {
+            const birthDate = new Date(tanggalLahir);
+            const today = new Date();
+            
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+            
+            return Math.max(0, age); // Pastikan umur tidak negatif
+        } catch (error) {
+            console.error('Error calculating age:', error);
+            return rekamMedis.pasien.umur || 0;
+        }
+    };
+
+    const tandaVital = getTandaVital();
+    const umurSebenarnya = calculateAge(rekamMedis.pasien.tanggal_lahir);
+
     return (
         <AppLayout>
             <Head title={`Detail Rekam Medis - ${rekamMedis.pasien.nama_lengkap}`} />
@@ -194,14 +269,14 @@ export default function Show({ rekamMedis }: Props) {
                                     <div className="mt-1 flex items-center gap-2">
                                         <Calendar className="w-4 h-4 text-gray-400" />
                                         <span className="text-sm text-gray-900">
-                                            {rekamMedis.pasien.tanggal_lahir}
+                                            {formatTanggalLahir(rekamMedis.pasien.tanggal_lahir)}
                                         </span>
                                     </div>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-gray-700">Umur / Jenis Kelamin</label>
                                     <p className="mt-1 text-sm text-gray-900">
-                                        {rekamMedis.pasien.umur} tahun / {getJenisKelaminBadge(rekamMedis.pasien.jenis_kelamin)}
+                                        {umurSebenarnya} tahun / {getJenisKelaminBadge(rekamMedis.pasien.jenis_kelamin)}
                                     </p>
                                 </div>
                             </div>
@@ -237,35 +312,35 @@ export default function Show({ rekamMedis }: Props) {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            {rekamMedis.tanda_vital ? (
+                            {tandaVital ? (
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="text-center p-4 bg-red-50 rounded-lg">
                                         <div className="text-2xl font-bold text-red-600 mb-1">
-                                            {rekamMedis.tanda_vital.tekanan_darah || '-'}
+                                            {cleanValue(tandaVital.tekanan_darah)}
                                         </div>
                                         <div className="text-sm text-red-700">Tekanan Darah</div>
-                                        <div className="text-xs text-gray-500">mmHg</div>
+                                        <div className="text-xs text-gray-500">{getUnit(tandaVital.tekanan_darah, 'mmHg')}</div>
                                     </div>
                                     <div className="text-center p-4 bg-orange-50 rounded-lg">
                                         <div className="text-2xl font-bold text-orange-600 mb-1">
-                                            {rekamMedis.tanda_vital.suhu || '-'}
+                                            {cleanValue(tandaVital.suhu)}
                                         </div>
                                         <div className="text-sm text-orange-700">Suhu Tubuh</div>
-                                        <div className="text-xs text-gray-500">°C</div>
+                                        <div className="text-xs text-gray-500">{getUnit(tandaVital.suhu, '°C')}</div>
                                     </div>
                                     <div className="text-center p-4 bg-blue-50 rounded-lg">
                                         <div className="text-2xl font-bold text-blue-600 mb-1">
-                                            {rekamMedis.tanda_vital.berat_badan || '-'}
+                                            {cleanValue(tandaVital.berat_badan)}
                                         </div>
                                         <div className="text-sm text-blue-700">Berat Badan</div>
-                                        <div className="text-xs text-gray-500">kg</div>
+                                        <div className="text-xs text-gray-500">{getUnit(tandaVital.berat_badan, 'kg')}</div>
                                     </div>
                                     <div className="text-center p-4 bg-green-50 rounded-lg">
                                         <div className="text-2xl font-bold text-green-600 mb-1">
-                                            {rekamMedis.tanda_vital.tinggi_badan || '-'}
+                                            {cleanValue(tandaVital.tinggi_badan)}
                                         </div>
                                         <div className="text-sm text-green-700">Tinggi Badan</div>
-                                        <div className="text-xs text-gray-500">cm</div>
+                                        <div className="text-xs text-gray-500">{getUnit(tandaVital.tinggi_badan, 'cm')}</div>
                                     </div>
                                 </div>
                             ) : (

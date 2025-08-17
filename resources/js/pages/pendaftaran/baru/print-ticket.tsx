@@ -66,7 +66,7 @@ export default function PrintTicket({ pendaftaran }: Props) {
                     {/* Header Klinik */}
                     <div className="text-center mb-6 border-b-2 border-gray-300 pb-4">
                         <h1 className="text-2xl font-bold text-gray-900">KLINIK SEHAT</h1>
-                        <p className="text-sm text-gray-600">Jl. Sehat No. 123, Kota Sehat</p>
+                        <p className="text-sm text-gray-600">Jl. Mahmud No.93, Mekar Rahayu, Kec. Margaasih, Kabupaten Bandung, Jawa Barat 40218</p>
                         <p className="text-sm text-gray-600">Telp: (021) 123-4567</p>
                     </div>
 
