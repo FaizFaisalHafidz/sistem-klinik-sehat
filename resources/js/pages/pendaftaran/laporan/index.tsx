@@ -12,6 +12,7 @@ import {
     CheckCircle,
     Clock,
     Download,
+    Eye,
     FileText,
     Filter,
     LineChart,
@@ -85,7 +86,25 @@ export default function Index({ stats, data, filters }: Props) {
     });
 
     const handleFilter = () => {
-        router.get(route('pendaftaran.laporan.index'), formData, {
+        // Create clean data object with proper typing
+        const filterParams: any = {
+            jenis_laporan: formData.jenis_laporan
+        };
+        
+        // Only add parameters if they have values
+        if (formData.tanggal_mulai) {
+            filterParams.tanggal_mulai = formData.tanggal_mulai;
+        }
+        if (formData.tanggal_akhir) {
+            filterParams.tanggal_akhir = formData.tanggal_akhir;
+        }
+        if (formData.search) {
+            filterParams.search = formData.search;
+        }
+
+        console.log('Sending filter data:', filterParams);
+        
+        router.get(route('pendaftaran.laporan.index'), filterParams, {
             preserveState: true,
             replace: true,
         });
@@ -105,13 +124,35 @@ export default function Index({ stats, data, filters }: Props) {
         });
     };
 
-    const handleExport = (format: string) => {
-        const params = new URLSearchParams({
-            ...formData,
-            format: format,
+    const handleShowDetail = (id: number, type: string) => {
+        // Navigate to laporan detail page with query parameter
+        router.visit(route('pendaftaran.laporan.show', id), {
+            data: { jenis_laporan: type },
+            method: 'get'
         });
+    };
+
+    const handleExport = (format: string) => {
+        // Create export parameters with current filter values
+        const exportParams: any = {
+            jenis_laporan: formData.jenis_laporan,
+            format: format
+        };
         
-        // Create download URL
+        // Only add parameters if they have values
+        if (formData.tanggal_mulai) {
+            exportParams.tanggal_mulai = formData.tanggal_mulai;
+        }
+        if (formData.tanggal_akhir) {
+            exportParams.tanggal_akhir = formData.tanggal_akhir;
+        }
+        if (formData.search) {
+            exportParams.search = formData.search;
+        }
+
+        console.log('Exporting with parameters:', exportParams);
+        
+        const params = new URLSearchParams(exportParams);
         const url = `${route('pendaftaran.laporan.export')}?${params.toString()}`;
         
         // Open in new window for download
@@ -471,40 +512,152 @@ export default function Index({ stats, data, filters }: Props) {
                                  formData.jenis_laporan === 'rekam_medis' ? 'Rekam Medis' : 'Pasien Baru'}
                         </CardTitle>
                         <p className="text-sm text-gray-600">
-                            Menampilkan {data.total} data
+                            Menampilkan {data.total} data | Search: nama pasien, diagnosis, anamnesis, kode rekam medis
                         </p>
                     </CardHeader>
                     <CardContent>
                         {data.data.length === 0 ? (
-                            <div className="text-center py-8">
-                                <FileText className="mx-auto h-12 w-12 text-gray-400" />
-                                <h3 className="mt-2 text-sm font-semibold text-gray-900">Tidak ada data</h3>
-                                <p className="mt-1 text-sm text-gray-500">
+                            <div className="text-center py-12">
+                                <FileText className="mx-auto h-16 w-16 text-gray-300" />
+                                <h3 className="mt-4 text-lg font-semibold text-gray-900">Tidak ada data</h3>
+                                <p className="mt-2 text-sm text-gray-500">
                                     Tidak ada data ditemukan untuk periode yang dipilih.
                                 </p>
                             </div>
                         ) : (
-                            <div className="space-y-4">
+                            <div className="space-y-3">
+                                {/* Modern Table Header */}
+                                <div className="hidden md:grid md:grid-cols-12 gap-4 py-3 px-4 bg-gray-50 rounded-lg font-medium text-sm text-gray-700 border">
+                                    <div className="col-span-2">ID / Kode</div>
+                                    <div className="col-span-3">
+                                        {formData.jenis_laporan === 'pendaftaran' ? 'Pasien' :
+                                         formData.jenis_laporan === 'rekam_medis' ? 'Pasien' :
+                                         formData.jenis_laporan === 'antrian' ? 'Pasien' : 'Nama Pasien'}
+                                    </div>
+                                    {/* <div className="col-span-3">
+                                        {
+                                         formData.jenis_laporan === 'rekam_medis' ? 'Diagnosa' : 'No. Telepon'
+                                        }
+                                    </div> */}
+                                    <div className="col-span-2">Tanggal</div>
+                                    <div className="col-span-1">Status</div>
+                                    <div className="col-span-1 text-center">Aksi</div>
+                                </div>
+
+                                {/* Modern Table Rows */}
                                 {data.data.map((item) => (
-                                    <div key={item.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div>
-                                                <span className="text-sm font-medium text-gray-700">ID:</span>
-                                                <p className="text-sm text-gray-900">#{item.id}</p>
+                                    <div key={item.id} className="grid md:grid-cols-12 gap-4 py-4 px-4 bg-white border rounded-lg hover:shadow-md transition-all duration-200 hover:border-blue-300 group">
+                                        {/* Mobile Card View */}
+                                        <div className="md:hidden space-y-3">
+                                            <div className="flex justify-between items-start">
+                                                <div className="space-y-1">
+                                                    <p className="font-semibold text-gray-900">
+                                                        {formData.jenis_laporan === 'pendaftaran' && item.kode_pendaftaran}
+                                                        {formData.jenis_laporan === 'rekam_medis' && item.kode_rekam_medis}
+                                                        {formData.jenis_laporan === 'antrian' && `Antrian #${item.nomor_antrian}`}
+                                                        {formData.jenis_laporan === 'pasien' && item.kode_pasien}
+                                                    </p>
+                                                    <p className="text-sm text-gray-600">
+                                                        {formData.jenis_laporan === 'pendaftaran' && item.pasien?.nama_lengkap}
+                                                        {formData.jenis_laporan === 'rekam_medis' && item.pasien?.nama_lengkap}
+                                                        {formData.jenis_laporan === 'antrian' && item.pendaftaran?.pasien?.nama_lengkap}
+                                                        {formData.jenis_laporan === 'pasien' && item.nama_lengkap}
+                                                    </p>
+                                                </div>
+                                                <Badge 
+                                                    variant={
+                                                        (item.status_pendaftaran === 'selesai' || item.status_antrian === 'selesai') ? 'default' :
+                                                        (item.status_pendaftaran === 'sedang_diperiksa' || item.status_antrian === 'dipanggil') ? 'secondary' :
+                                                        'outline'
+                                                    }
+                                                >
+                                                    {item.status_pendaftaran || item.status_antrian || 'Aktif'}
+                                                </Badge>
                                             </div>
-                                            <div>
-                                                <span className="text-sm font-medium text-gray-700">Tanggal:</span>
-                                                <p className="text-sm text-gray-900">{formatDate(item.created_at)}</p>
+                                            <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+                                                <span className="text-xs text-gray-500">
+                                                    {formatDate(item.created_at)}
+                                                </span>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => handleShowDetail(item.id, formData.jenis_laporan)}
+                                                    className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                                                >
+                                                    <Eye className="w-4 h-4 mr-1" />
+                                                    Detail
+                                                </Button>
                                             </div>
-                                            <div>
-                                                <span className="text-sm font-medium text-gray-700">Detail:</span>
-                                                <p className="text-sm text-gray-900">
-                                                    {/* Render different details based on report type */}
+                                        </div>
+
+                                        {/* Desktop Table View */}
+                                        <div className="hidden md:contents">
+                                            <div className="col-span-2">
+                                                <p className="font-semibold text-gray-900 text-sm">
                                                     {formData.jenis_laporan === 'pendaftaran' && item.kode_pendaftaran}
-                                                    {formData.jenis_laporan === 'antrian' && `Antrian #${item.nomor_antrian}`}
-                                                    {formData.jenis_laporan === 'rekam_medis' && item.diagnosis}
+                                                    {formData.jenis_laporan === 'rekam_medis' && item.kode_rekam_medis}
+                                                    {formData.jenis_laporan === 'antrian' && `#${item.nomor_antrian}`}
+                                                    {formData.jenis_laporan === 'pasien' && item.kode_pasien}
+                                                </p>
+                                                <p className="text-xs text-gray-500">#{item.id}</p>
+                                            </div>
+                                            <div className="col-span-3">
+                                                <p className="font-medium text-gray-900 text-sm">
+                                                    {formData.jenis_laporan === 'pendaftaran' && item.pasien?.nama_lengkap}
+                                                    {formData.jenis_laporan === 'rekam_medis' && item.pasien?.nama_lengkap}
+                                                    {formData.jenis_laporan === 'antrian' && item.pendaftaran?.pasien?.nama_lengkap}
                                                     {formData.jenis_laporan === 'pasien' && item.nama_lengkap}
                                                 </p>
+                                                {formData.jenis_laporan === 'rekam_medis' && (
+                                                    <p className="text-xs text-gray-500">
+                                                        Dokter: {item.dokter?.nama_lengkap}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {/* <div className="col-span-3">
+                                                <p className="text-sm text-gray-900">
+                                                    {formData.jenis_laporan === 'pendaftaran' && item.jenis_pemeriksaan}
+                                                    {formData.jenis_laporan === 'rekam_medis' && (
+                                                        <span className="font-medium">{item.diagnosa}</span>
+                                                    )}
+                                                    {formData.jenis_laporan === 'antrian' && item.status_antrian}
+                                                    {formData.jenis_laporan === 'pasien' && item.telepon}
+                                                </p>
+                                                {formData.jenis_laporan === 'rekam_medis' && item.total_biaya && (
+                                                    <p className="text-xs text-green-600 font-semibold">
+                                                        Total: Rp {Number(item.total_biaya).toLocaleString('id-ID')}
+                                                    </p>
+                                                )}
+                                            </div> */}
+                                            <div className="col-span-2">
+                                                <p className="text-sm text-gray-700">{formatDate(item.created_at)}</p>
+                                            </div>
+                                            <div className="col-span-1">
+                                                <Badge 
+                                                    variant={
+                                                        (item.status_pendaftaran === 'selesai' || item.status_antrian === 'selesai') ? 'default' :
+                                                        (item.status_pendaftaran === 'sedang_diperiksa' || item.status_antrian === 'dipanggil') ? 'secondary' :
+                                                        'outline'
+                                                    }
+                                                    className="text-xs px-2 py-1"
+                                                >
+                                                    {item.status_pendaftaran === 'selesai' ? 'Selesai' :
+                                                     item.status_pendaftaran === 'sedang_diperiksa' ? 'Diperiksa' :
+                                                     item.status_antrian === 'selesai' ? 'Selesai' :
+                                                     item.status_antrian === 'dipanggil' ? 'Dipanggil' :
+                                                     item.status_antrian === 'menunggu' ? 'Menunggu' :
+                                                     'Aktif'}
+                                                </Badge>
+                                            </div>
+                                            <div className="col-span-1 flex justify-center">
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => handleShowDetail(item.id, formData.jenis_laporan)}
+                                                    className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1"
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                </Button>
                                             </div>
                                         </div>
                                     </div>
@@ -512,13 +665,13 @@ export default function Index({ stats, data, filters }: Props) {
 
                                 {/* Pagination */}
                                 {data.last_page > 1 && (
-                                    <div className="flex items-center justify-between pt-4">
-                                        <div className="text-sm text-gray-700">
+                                    <div className="flex flex-col sm:flex-row items-center justify-between pt-6 border-t border-gray-200">
+                                        <div className="text-sm text-gray-700 mb-4 sm:mb-0">
                                             Menampilkan {((data.current_page - 1) * data.per_page) + 1} sampai{' '}
                                             {Math.min(data.current_page * data.per_page, data.total)} dari{' '}
-                                            {data.total} hasil
+                                            <span className="font-semibold">{data.total}</span> hasil
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1">
                                             {data.links.map((link, index) => (
                                                 <button
                                                     key={index}
@@ -528,12 +681,12 @@ export default function Index({ stats, data, filters }: Props) {
                                                         }
                                                     }}
                                                     disabled={!link.url}
-                                                    className={`px-3 py-1 text-sm rounded ${
+                                                    className={`px-3 py-2 text-sm rounded-lg transition-colors ${
                                                         link.active
-                                                            ? 'bg-blue-600 text-white'
+                                                            ? 'bg-blue-600 text-white shadow-sm'
                                                             : link.url
-                                                                ? 'text-blue-600 hover:bg-blue-50'
-                                                                : 'text-gray-400 cursor-not-allowed'
+                                                                ? 'text-gray-700 hover:bg-gray-100 border border-gray-300'
+                                                                : 'text-gray-400 cursor-not-allowed bg-gray-50'
                                                     }`}
                                                     dangerouslySetInnerHTML={{ __html: link.label }}
                                                 />

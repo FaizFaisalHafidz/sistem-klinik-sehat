@@ -14,6 +14,17 @@ class PasienController extends Controller
     {
         $query = Pasien::query();
 
+        // General search parameter - search across multiple fields
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('nama_lengkap', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('nik', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('kode_pasien', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('telepon', 'like', '%' . $searchTerm . '%');
+            });
+        }
+
         // Filter berdasarkan nama
         if ($request->filled('nama')) {
             $query->where('nama_lengkap', 'like', '%' . $request->nama . '%');
@@ -83,7 +94,7 @@ class PasienController extends Controller
 
         return Inertia::render('pendaftaran/pasien/index', [
             'pasien' => $pasienData,
-            'filters' => $request->only(['nama', 'nik', 'jenis_kelamin', 'umur_dari', 'umur_sampai', 'telepon', 'alamat']),
+            'filters' => $request->only(['search', 'nama', 'nik', 'jenis_kelamin', 'umur_dari', 'umur_sampai', 'telepon', 'alamat']),
             'statistics' => [
                 'total_pasien' => $totalPasien,
                 'pasien_laki_laki' => $pasienLakiLaki,
@@ -261,6 +272,17 @@ class PasienController extends Controller
     public function export(Request $request)
     {
         $query = Pasien::query();
+
+        // Apply general search parameter
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('nama_lengkap', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('nik', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('kode_pasien', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('telepon', 'like', '%' . $searchTerm . '%');
+            });
+        }
 
         // Apply same filters as index
         if ($request->filled('nama')) {

@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class LaporanController extends Controller
@@ -19,11 +20,21 @@ class LaporanController extends Controller
     {
         $filters = $request->only(['tanggal_mulai', 'tanggal_akhir', 'jenis_laporan', 'search']);
         
-        // Set default date range (last 30 days)
-        $tanggalMulai = $filters['tanggal_mulai'] ?? Carbon::now()->subDays(30)->format('Y-m-d');
-        $tanggalAkhir = $filters['tanggal_akhir'] ?? Carbon::now()->format('Y-m-d');
+        // Set default date range only if not provided or empty
+        $tanggalMulai = !empty($filters['tanggal_mulai']) ? $filters['tanggal_mulai'] : Carbon::now()->subDays(7)->format('Y-m-d');
+        $tanggalAkhir = !empty($filters['tanggal_akhir']) ? $filters['tanggal_akhir'] : Carbon::now()->format('Y-m-d');
         $jenisLaporan = $filters['jenis_laporan'] ?? 'pendaftaran';
         $search = $filters['search'] ?? '';
+
+        // Ensure proper date format and validation
+        try {
+            $tanggalMulai = Carbon::parse($tanggalMulai)->format('Y-m-d');
+            $tanggalAkhir = Carbon::parse($tanggalAkhir)->format('Y-m-d');
+        } catch (\Exception $e) {
+            // Fallback to default if date parsing fails
+            $tanggalMulai = Carbon::now()->subDays(7)->format('Y-m-d');
+            $tanggalAkhir = Carbon::now()->format('Y-m-d');
+        }
 
         // Initialize stats
         $stats = [];
@@ -205,11 +216,14 @@ class LaporanController extends Controller
             ->whereBetween('created_at', [$tanggalMulai, $tanggalAkhir . ' 23:59:59']);
 
         if ($search) {
-            $query->whereHas('pasien', function($q) use ($search) {
-                $q->where('nama_lengkap', 'like', "%{$search}%")
-                  ->orWhere('kode_pasien', 'like', "%{$search}%");
-            })->orWhere('diagnosis', 'like', "%{$search}%")
-              ->orWhere('keluhan', 'like', "%{$search}%");
+            $query->where(function($q) use ($search) {
+                $q->whereHas('pasien', function($subQ) use ($search) {
+                    $subQ->where('nama_lengkap', 'like', "%{$search}%")
+                         ->orWhere('kode_pasien', 'like', "%{$search}%");
+                })->orWhere('diagnosa', 'like', "%{$search}%")
+                  ->orWhere('anamnesis', 'like', "%{$search}%")
+                  ->orWhere('kode_rekam_medis', 'like', "%{$search}%");
+            });
         }
 
         return $query->orderBy('created_at', 'desc')->paginate(20);
@@ -220,9 +234,9 @@ class LaporanController extends Controller
         $totalPasien = Pasien::whereBetween('created_at', [$tanggalMulai, $tanggalAkhir . ' 23:59:59'])->count();
         $pasienBaru = Pasien::whereDate('created_at', Carbon::today())->count();
         $pasienLakiLaki = Pasien::whereBetween('created_at', [$tanggalMulai, $tanggalAkhir . ' 23:59:59'])
-            ->where('jenis_kelamin', 'L')->count();
+            ->where('jenis_kelamin', 'laki-laki')->count();
         $pasienPerempuan = Pasien::whereBetween('created_at', [$tanggalMulai, $tanggalAkhir . ' 23:59:59'])
-            ->where('jenis_kelamin', 'P')->count();
+            ->where('jenis_kelamin', 'perempuan')->count();
 
         // Age distribution
         $ageDistribution = Pasien::select(
@@ -273,40 +287,51 @@ class LaporanController extends Controller
 
     public function export(Request $request)
     {
-        $filters = $request->only(['tanggal_mulai', 'tanggal_akhir', 'jenis_laporan', 'format']);
+        $filters = $request->only(['tanggal_mulai', 'tanggal_akhir', 'jenis_laporan', 'format', 'search']);
         
-        // Set default values
-        $tanggalMulai = $filters['tanggal_mulai'] ?? Carbon::now()->subDays(30)->format('Y-m-d');
-        $tanggalAkhir = $filters['tanggal_akhir'] ?? Carbon::now()->format('Y-m-d');
+        // Use the same logic as index method for consistency
+        $tanggalMulai = !empty($filters['tanggal_mulai']) ? $filters['tanggal_mulai'] : Carbon::now()->subDays(7)->format('Y-m-d');
+        $tanggalAkhir = !empty($filters['tanggal_akhir']) ? $filters['tanggal_akhir'] : Carbon::now()->format('Y-m-d');
         $jenisLaporan = $filters['jenis_laporan'] ?? 'pendaftaran';
         $format = $filters['format'] ?? 'pdf';
+        $search = $filters['search'] ?? '';
 
-        // Generate filename
+        // Ensure proper date format and validation
+        try {
+            $tanggalMulai = Carbon::parse($tanggalMulai)->format('Y-m-d');
+            $tanggalAkhir = Carbon::parse($tanggalAkhir)->format('Y-m-d');
+        } catch (\Exception $e) {
+            // Fallback to default if date parsing fails
+            $tanggalMulai = Carbon::now()->subDays(7)->format('Y-m-d');
+            $tanggalAkhir = Carbon::now()->format('Y-m-d');
+        }
+
+        // Generate filename with actual date range
         $filename = "laporan_{$jenisLaporan}_{$tanggalMulai}_to_{$tanggalAkhir}.{$format}";
 
-        // Get data based on report type
+        // Get data based on report type - use the same search parameter
         $data = [];
         $stats = [];
         
         switch ($jenisLaporan) {
             case 'pendaftaran':
                 $stats = $this->getPendaftaranStats($tanggalMulai, $tanggalAkhir);
-                $data = $this->getPendaftaranData($tanggalMulai, $tanggalAkhir, '');
+                $data = $this->getPendaftaranData($tanggalMulai, $tanggalAkhir, $search);
                 break;
                 
             case 'antrian':
                 $stats = $this->getAntrianStats($tanggalMulai, $tanggalAkhir);
-                $data = $this->getAntrianData($tanggalMulai, $tanggalAkhir, '');
+                $data = $this->getAntrianData($tanggalMulai, $tanggalAkhir, $search);
                 break;
                 
             case 'rekam_medis':
                 $stats = $this->getRekamMedisStats($tanggalMulai, $tanggalAkhir);
-                $data = $this->getRekamMedisData($tanggalMulai, $tanggalAkhir, '');
+                $data = $this->getRekamMedisData($tanggalMulai, $tanggalAkhir, $search);
                 break;
                 
             case 'pasien':
                 $stats = $this->getPasienStats($tanggalMulai, $tanggalAkhir);
-                $data = $this->getPasienData($tanggalMulai, $tanggalAkhir, '');
+                $data = $this->getPasienData($tanggalMulai, $tanggalAkhir, $search);
                 break;
         }
 
@@ -370,6 +395,93 @@ class LaporanController extends Controller
             'stats' => $stats,
             'type' => $jenisLaporan,
             'period' => "$tanggalMulai to $tanggalAkhir"
+        ]);
+    }
+
+    public function show($id, Request $request)
+    {
+        $jenisLaporan = $request->get('jenis_laporan', 'rekam_medis');
+
+        switch ($jenisLaporan) {
+            case 'rekam_medis':
+                return $this->showRekamMedis($id);
+                
+            case 'pendaftaran':
+                return $this->showPendaftaran($id);
+                
+            case 'pasien':
+                return $this->showPasien($id);
+                
+            case 'antrian':
+                return $this->showAntrian($id);
+                
+            default:
+                abort(404, 'Jenis laporan tidak valid');
+        }
+    }
+
+    private function showRekamMedis($id)
+    {
+        $rekamMedis = RekamMedis::with([
+            'pasien:id,nama_lengkap,tanggal_lahir,jenis_kelamin,telepon,alamat',
+            'dokter:id,nama_lengkap,spesialisasi,telepon',
+            'pendaftaran:id,kode_pendaftaran,jenis_pemeriksaan,status_pendaftaran',
+            'resep.detailResep.obat:id,nama_obat,satuan'
+        ])->findOrFail($id);
+
+        // Calculate total biaya if not set
+        if (!$rekamMedis->total_biaya || $rekamMedis->total_biaya == 0) {
+            $rekamMedis->updateBiayaObat();
+            $rekamMedis->refresh();
+        }
+
+        return Inertia::render('pendaftaran/laporan/show', [
+            'rekamMedis' => $rekamMedis,
+            'jenisLaporan' => 'rekam_medis'
+        ]);
+    }
+
+    private function showPendaftaran($id)
+    {
+        $pendaftaran = Pendaftaran::with([
+            'pasien:id,nama_lengkap,tanggal_lahir,jenis_kelamin,telepon,alamat',
+            'dokter:id,nama_lengkap,spesialisasi',
+            'antrian:id,nomor_antrian,status_antrian,waktu_dipanggil,estimasi_waktu'
+        ])->findOrFail($id);
+
+        return Inertia::render('pendaftaran/laporan/show', [
+            'pendaftaran' => $pendaftaran,
+            'jenisLaporan' => 'pendaftaran'
+        ]);
+    }
+
+    private function showPasien($id)
+    {
+        $pasien = Pasien::with([
+            'pendaftaran' => function($query) {
+                $query->latest()->take(5);
+            },
+            'rekamMedis' => function($query) {
+                $query->latest()->take(5);
+            }
+        ])->findOrFail($id);
+
+        return Inertia::render('pendaftaran/laporan/show', [
+            'pasien' => $pasien,
+            'jenisLaporan' => 'pasien'
+        ]);
+    }
+
+    private function showAntrian($id)
+    {
+        $antrian = Antrian::with([
+            'pendaftaran.pasien:id,nama_lengkap,tanggal_lahir,jenis_kelamin,telepon',
+            'pendaftaran.dokter:id,nama_lengkap,spesialisasi'
+        ])->findOrFail($id);
+
+        return Inertia::render('pendaftaran/laporan/show', [
+            'antrian' => $antrian,
+            'jenisLaporan' => 'antrian'
         ]);
     }
 }

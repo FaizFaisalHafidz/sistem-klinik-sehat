@@ -38,6 +38,7 @@ interface Stat {
     color: string;
     change?: string;
     changeType?: 'increase' | 'decrease';
+    description?: string;
 }
 
 interface User {
@@ -276,6 +277,11 @@ export default function Dashboard({ user, role, stats, title, subtitle }: Dashbo
                                         <p className="text-2xl font-bold text-gray-900 dark:text-white">
                                             {stat.value}
                                         </p>
+                                        {stat.description && (
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                {stat.description}
+                                            </p>
+                                        )}
                                         {stat.change && (
                                             <div className={`flex items-center mt-2 text-sm ${
                                                 stat.changeType === 'increase' 

@@ -14,6 +14,7 @@ class Pasien extends Model
         'nik',
         'nama_lengkap',
         'tanggal_lahir',
+        'tempat_lahir',
         'jenis_kelamin',
         'alamat',
         'telepon',

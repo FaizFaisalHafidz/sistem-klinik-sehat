@@ -95,6 +95,7 @@ Route::middleware(['auth', 'active.user'])->group(function () {
 
         // Laporan routes
         Route::get('laporan', [PendaftaranLaporanController::class, 'index'])->name('laporan.index');
+        Route::get('laporan/{id}', [PendaftaranLaporanController::class, 'show'])->name('laporan.show');
         Route::get('laporan/export', [PendaftaranLaporanController::class, 'export'])->name('laporan.export');
     });
 

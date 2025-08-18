@@ -88,15 +88,17 @@ class DashboardController extends Controller
                 'icon' => 'Calendar',
                 'color' => 'bg-green-500',
                 'change' => '+5%',
-                'changeType' => 'increase'
+                'changeType' => 'increase',
+                'description' => 'Pasien yang mendaftar hari ini'
             ],
             [
                 'title' => 'Resep Aktif',
-                'value' => Resep::where('status_resep', 'menunggu')->count(),
+                'value' => Resep::where('status_resep', 'belum_diambil')->count(),
                 'icon' => 'Pill',
                 'color' => 'bg-purple-500',
                 'change' => '+8%',
-                'changeType' => 'increase'
+                'changeType' => 'increase',
+                'description' => 'Resep yang belum diambil pasien'
             ],
             [
                 'title' => 'Total Obat',
@@ -104,7 +106,8 @@ class DashboardController extends Controller
                 'icon' => 'Package',
                 'color' => 'bg-orange-500',
                 'change' => '+15%',
-                'changeType' => 'increase'
+                'changeType' => 'increase',
+                'description' => 'Jenis obat tersedia di apotek'
             ]
         ];
     }
@@ -177,6 +180,7 @@ class DashboardController extends Controller
                 'value' => Resep::whereDate('created_at', today())->count(),
                 'icon' => 'Pill',
                 'color' => 'bg-blue-500',
+                'description' => 'Resep baru yang masuk hari ini'
             ],
             [
                 'title' => 'Total Stok Obat',
@@ -186,15 +190,17 @@ class DashboardController extends Controller
             ],
             [
                 'title' => 'Resep Diproses',
-                'value' => Resep::where('status_resep', 'menunggu')->count(),
+                'value' => Resep::where('status_resep', 'belum_diambil')->count(),
                 'icon' => 'TrendingUp',
                 'color' => 'bg-purple-500',
+                'description' => 'Resep yang perlu disiapkan'
             ],
             [
                 'title' => 'Stok Menipis',
                 'value' => Obat::where('stok_tersedia', '<=', 10)->count(),
                 'icon' => 'AlertTriangle',
                 'color' => 'bg-red-500',
+                'description' => 'Obat dengan stok ≤ 10'
             ]
         ];
     }
