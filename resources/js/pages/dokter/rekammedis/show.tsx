@@ -58,13 +58,37 @@ interface RekamMedis {
     tanggal_kontrol: string;
     status_rekam_medis: string;
     tanda_vital: string | TandaVital | null; // Could be JSON string or parsed object
+    biaya_konsultasi: number;
+    biaya_obat: number;
+    total_biaya: number;
+    biaya_konsultasi_formatted: string;
+    biaya_obat_formatted: string;
+    total_biaya_formatted: string;
     pasien: Pasien;
     dokter: Dokter;
     pendaftaran: Pendaftaran;
 }
 
+interface Obat {
+    id: number;
+    nama_obat: string;
+    nama_generik: string;
+    satuan: string;
+}
+
+interface ResepDetail {
+    obat: Obat;
+    jumlah: number;
+    aturan_pakai: string;
+    harga_satuan: number;
+    subtotal: number;
+    subtotal_formatted: string;
+    keterangan?: string;
+}
+
 interface Props {
     rekamMedis: RekamMedis;
+    resepDetails: ResepDetail[];
 }
 
 const getStatusBadge = (status: string) => {
@@ -82,7 +106,7 @@ const getJenisKelaminBadge = (jenis_kelamin: string) => {
     return jenis_kelamin === 'laki-laki' ? 'Laki-laki' : 'Perempuan';
 };
 
-export default function Show({ rekamMedis }: Props) {
+export default function Show({ rekamMedis, resepDetails }: Props) {
     // Parse tanda_vital dari JSON string jika diperlukan
     const getTandaVital = (): TandaVital | null => {
         if (!rekamMedis.tanda_vital) return null;
@@ -421,6 +445,106 @@ export default function Show({ rekamMedis }: Props) {
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Resep Obat */}
+                {resepDetails && resepDetails.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <FileText className="w-5 h-5" />
+                                Resep Obat
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {resepDetails.map((detail, index) => (
+                                    <div key={index} className="border rounded-lg p-4 bg-green-50">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <h4 className="font-semibold text-gray-900">{detail.obat.nama_obat}</h4>
+                                                <p className="text-sm text-gray-600">{detail.obat.nama_generik}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="font-semibold text-green-700">{detail.subtotal_formatted}</p>
+                                                <p className="text-xs text-gray-500">
+                                                    {detail.jumlah} {detail.obat.satuan} × Rp {detail.harga_satuan.toLocaleString('id-ID')}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                            <div>
+                                                <span className="font-medium text-gray-700">Jumlah: </span>
+                                                <span className="text-gray-900">{detail.jumlah} {detail.obat.satuan}</span>
+                                            </div>
+                                            <div>
+                                                <span className="font-medium text-gray-700">Aturan Pakai: </span>
+                                                <span className="text-gray-900">{detail.aturan_pakai}</span>
+                                            </div>
+                                        </div>
+                                        
+                                        {detail.keterangan && (
+                                            <div className="mt-2 text-sm">
+                                                <span className="font-medium text-gray-700">Keterangan: </span>
+                                                <span className="text-gray-900">{detail.keterangan}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Rincian Biaya */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <FileText className="w-5 h-5" />
+                            Rincian Biaya
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            {/* Biaya Konsultasi */}
+                            <div className="flex justify-between items-center py-3 border-b border-gray-200">
+                                <div>
+                                    <p className="font-medium text-gray-900">Biaya Pemeriksaan</p>
+                                    <p className="text-sm text-gray-600">
+                                        oleh {rekamMedis.dokter.nama_lengkap}
+                                    </p>
+                                </div>
+                                <span className="text-lg font-semibold text-gray-900">
+                                    {rekamMedis.biaya_konsultasi_formatted}
+                                </span>
+                            </div>
+
+                            {/* Biaya Obat */}
+                            <div className="flex justify-between items-center py-3 border-b border-gray-200">
+                                <div>
+                                    <p className="font-medium text-gray-900">Biaya Obat</p>
+                                    <p className="text-sm text-gray-600">
+                                        {resepDetails.length} jenis obat
+                                    </p>
+                                </div>
+                                <span className="text-lg font-semibold text-gray-900">
+                                    {rekamMedis.biaya_obat_formatted}
+                                </span>
+                            </div>
+
+                            {/* Total Biaya */}
+                            <div className="flex justify-between items-center py-4 pt-4 border-t-2 border-gray-300 bg-blue-50 px-4 rounded-lg">
+                                <div>
+                                    <p className="text-lg font-bold text-blue-900">Total Biaya</p>
+                                    <p className="text-sm text-blue-700">Biaya keseluruhan pemeriksaan</p>
+                                </div>
+                                <span className="text-xl font-bold text-blue-900">
+                                    {rekamMedis.total_biaya_formatted}
+                                </span>
                             </div>
                         </div>
                     </CardContent>

@@ -47,6 +47,12 @@ interface RekamMedis {
     anjuran: string;
     tanggal_pemeriksaan: string;
     dokter: Dokter;
+    biaya_konsultasi: number;
+    biaya_obat: number;
+    total_biaya: number;
+    biaya_konsultasi_formatted: string;
+    biaya_obat_formatted: string;
+    total_biaya_formatted: string;
 }
 
 interface Antrian {
@@ -380,6 +386,56 @@ export default function Show({ pendaftaran }: Props) {
                                         <Calendar className="w-4 h-4" />
                                         <span>Tanggal: {pendaftaran.rekamMedis.tanggal_pemeriksaan}</span>
                                     </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Rincian Biaya */}
+                {pendaftaran.rekamMedis && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <FileText className="w-5 h-5" />
+                                Rincian Biaya
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {/* Biaya Konsultasi */}
+                                <div className="flex justify-between items-center py-3 border-b border-gray-200">
+                                    <div>
+                                        <p className="font-medium text-gray-900">Biaya Pemeriksaan</p>
+                                        <p className="text-sm text-gray-600">
+                                            oleh {pendaftaran.rekamMedis.dokter.nama_lengkap}
+                                        </p>
+                                    </div>
+                                    <span className="text-lg font-semibold text-gray-900">
+                                        {pendaftaran.rekamMedis.biaya_konsultasi_formatted}
+                                    </span>
+                                </div>
+
+                                {/* Biaya Obat */}
+                                <div className="flex justify-between items-center py-3 border-b border-gray-200">
+                                    <div>
+                                        <p className="font-medium text-gray-900">Biaya Obat</p>
+                                        <p className="text-sm text-gray-600">Total biaya semua obat</p>
+                                    </div>
+                                    <span className="text-lg font-semibold text-gray-900">
+                                        {pendaftaran.rekamMedis.biaya_obat_formatted}
+                                    </span>
+                                </div>
+
+                                {/* Total Biaya */}
+                                <div className="flex justify-between items-center py-3 pt-4 border-t-2 border-gray-300 bg-blue-50 px-4 rounded-lg">
+                                    <div>
+                                        <p className="text-lg font-bold text-blue-900">Total Biaya</p>
+                                        <p className="text-sm text-blue-700">Biaya keseluruhan pemeriksaan</p>
+                                    </div>
+                                    <span className="text-xl font-bold text-blue-900">
+                                        {pendaftaran.rekamMedis.total_biaya_formatted}
+                                    </span>
                                 </div>
                             </div>
                         </CardContent>

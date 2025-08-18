@@ -50,6 +50,8 @@ interface Pegawai {
     alamat: string | null;
     tanggal_masuk: string | null;
     is_aktif: boolean;
+    biaya_konsultasi: number;
+    biaya_konsultasi_formatted: string;
     user: User | null;
     created_at: string;
     updated_at: string;
@@ -124,6 +126,20 @@ export default function Index({ pegawai, filters }: Props) {
                     {info.getValue() || '-'}
                 </div>
             ),
+        }),
+        columnHelper.accessor('biaya_konsultasi', {
+            header: 'Biaya Konsultasi',
+            cell: (info) => {
+                const pegawai = info.row.original;
+                    const formatBiaya = pegawai.biaya_konsultasi_formatted || 
+                        `Rp ${pegawai.biaya_konsultasi?.toLocaleString('id-ID') || '0'}`;
+                    
+                    return (
+                        <div className="text-sm font-medium text-green-600">
+                            {formatBiaya}
+                        </div>
+                    );
+                }
         }),
         columnHelper.accessor('telepon', {
             header: 'Telepon',

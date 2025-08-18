@@ -36,6 +36,8 @@ interface Pegawai {
     email: string | null;
     alamat: string | null;
     tanggal_masuk: string | null;
+    biaya_konsultasi: number;
+    biaya_konsultasi_formatted: string;
     is_aktif: boolean;
     user: User | null;
     created_at: string;
@@ -162,6 +164,15 @@ export default function Show({ pegawai }: Props) {
                                             <div className="flex-1">
                                                 <p className="text-sm text-gray-500">Spesialisasi</p>
                                                 <p className="text-sm font-medium text-gray-900">{pegawai.spesialisasi || '-'}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center">
+                                            <Badge className="w-4 h-4 mr-3 text-gray-400" />
+                                            <div className="flex-1">
+                                                <p className="text-sm text-gray-500">Biaya Konsultasi</p>
+                                                <p className="text-sm font-medium text-gray-900">
+                                                    {pegawai.biaya_konsultasi > 0 ? pegawai.biaya_konsultasi_formatted : '-'}
+                                                </p>
                                             </div>
                                         </div>
                                     </div>

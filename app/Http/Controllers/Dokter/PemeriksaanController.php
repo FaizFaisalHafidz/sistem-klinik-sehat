@@ -83,6 +83,13 @@ class PemeriksaanController extends Controller
             $resep = Resep::with(['detailResep.obat'])
                 ->where('rekam_medis_id', $pendaftaran->rekamMedis->id)
                 ->first();
+                
+            // Append formatted biaya attributes
+            $pendaftaran->rekamMedis->append([
+                'biaya_konsultasi_formatted',
+                'biaya_obat_formatted', 
+                'total_biaya_formatted'
+            ]);
         }
 
         // Format data untuk tampilan
@@ -116,6 +123,13 @@ class PemeriksaanController extends Controller
                 ->with('error', 'Pendaftaran tidak dalam status sedang diperiksa.');
         }
 
+        // Get data dokter yang sedang login untuk biaya konsultasi
+        $pegawai = \App\Models\Pegawai::where('user_id', Auth::id())->first();
+        if (!$pegawai) {
+            return redirect()->route('dokter.pemeriksaan.index')
+                ->with('error', 'Data pegawai tidak ditemukan.');
+        }
+
         // Get list obat yang aktif dan tersedia
         $obatList = \App\Models\Obat::active()
             ->where('stok_tersedia', '>', 0)
@@ -126,6 +140,7 @@ class PemeriksaanController extends Controller
         return Inertia::render('dokter/pemeriksaan/create', [
             'pendaftaran' => $pendaftaran,
             'obatList' => $obatList,
+            'dokter' => $pegawai,
         ]);
     }
 
@@ -265,6 +280,17 @@ class PemeriksaanController extends Controller
                 $resepText = implode("\n", $resepLines);
             }
 
+            // Hitung total biaya obat
+            $totalBiayaObat = 0;
+            if (!empty($request->resep_obat)) {
+                foreach ($request->resep_obat as $resepItem) {
+                    $obat = \App\Models\Obat::find($resepItem['obat_id']);
+                    if ($obat) {
+                        $totalBiayaObat += $obat->harga * $resepItem['jumlah'];
+                    }
+                }
+            }
+
             $rekamMedis = new RekamMedis([
                 'pendaftaran_id' => $pendaftaran->id,
                 'pasien_id' => $pendaftaran->pasien_id,
@@ -277,6 +303,9 @@ class PemeriksaanController extends Controller
                 'rencana_pengobatan' => $request->tindakan . (!empty($resepText) ? "\n\nResep Obat:\n" . $resepText : '') . ($request->anjuran ? "\n\nAnjuran:\n" . $request->anjuran : ''),
                 'catatan_dokter' => $request->catatan,
                 'status_rekam_medis' => 'selesai',
+                'biaya_konsultasi' => $pegawai->biaya_konsultasi,
+                'biaya_obat' => $totalBiayaObat,
+                'total_biaya' => $pegawai->biaya_konsultasi + $totalBiayaObat,
             ]);
 
             // Generate kode rekam medis

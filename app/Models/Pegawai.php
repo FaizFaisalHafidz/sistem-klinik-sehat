@@ -23,11 +23,13 @@ class Pegawai extends Model
         'alamat',
         'tanggal_masuk',
         'is_aktif',
+        'biaya_konsultasi',
     ];
 
     protected $casts = [
         'tanggal_masuk' => 'date',
         'is_aktif' => 'boolean',
+        'biaya_konsultasi' => 'decimal:2',
     ];
 
     // Relationships
@@ -70,5 +72,11 @@ class Pegawai extends Model
     public function scopePendaftaran($query)
     {
         return $query->where('jabatan', 'pendaftaran');
+    }
+
+    // Accessors
+    public function getBiayaKonsultasiFormattedAttribute()
+    {
+        return 'Rp ' . number_format($this->biaya_konsultasi, 0, ',', '.');
     }
 }

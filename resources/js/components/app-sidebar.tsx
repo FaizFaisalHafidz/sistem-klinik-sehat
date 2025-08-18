@@ -10,7 +10,6 @@ import {
     FileText,
     LayoutGrid,
     Pill,
-    Receipt,
     Stethoscope,
     UserCheck,
     Users,
@@ -113,11 +112,6 @@ export function AppSidebar() {
             title: 'Rekam Medis',
             href: '/dokter/rekam-medis',
             icon: FileText,
-        },
-        {
-            title: 'Resep',
-            href: '/dokter/resep',
-            icon: Receipt,
         },
         {
             title: 'Data Obat',

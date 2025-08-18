@@ -9,6 +9,7 @@ import {
     MapPin,
     Phone,
     Pill,
+    Receipt,
     Save,
     Search,
     Stethoscope,
@@ -77,18 +78,44 @@ interface Pendaftaran {
     rekamMedis: RekamMedis | null;
 }
 
+interface Dokter {
+    id: number;
+    nama_lengkap: string;
+    jabatan: string;
+    spesialisasi: string;
+    biaya_konsultasi: number;
+    biaya_konsultasi_formatted: string;
+}
+
 interface Props {
     pendaftaran: Pendaftaran;
     obatList: Obat[];
+    dokter: Dokter;
 }
 
 const getJenisKelaminBadge = (jenis_kelamin: string) => {
     return jenis_kelamin === 'laki-laki' ? 'Laki-laki' : 'Perempuan';
 };
 
-export default function Create({ pendaftaran, obatList }: Props) {
+export default function Create({ pendaftaran, obatList, dokter }: Props) {
     const [searchObat, setSearchObat] = useState('');
     const [selectedObatList, setSelectedObatList] = useState<ResepObat[]>([]);
+
+    // Calculate total biaya obat
+    const totalBiayaObat = useMemo(() => {
+        return selectedObatList.reduce((total, item) => {
+            const jumlah = Number(item.jumlah) || 0;
+            const harga = Number(item.obat?.harga) || 0;
+            return total + (jumlah * harga);
+        }, 0);
+    }, [selectedObatList]);
+
+    // Calculate total biaya keseluruhan
+    const totalBiayaKeseluruhan = useMemo(() => {
+        const biayaKonsultasi = Number(dokter.biaya_konsultasi) || 0;
+        const biayaObat = Number(totalBiayaObat) || 0;
+        return biayaKonsultasi + biayaObat;
+    }, [dokter.biaya_konsultasi, totalBiayaObat]);
 
     const { data, setData, post, processing, errors, reset } = useForm({
         pendaftaran_id: pendaftaran.id,
@@ -526,6 +553,59 @@ export default function Create({ pendaftaran, obatList }: Props) {
                                         {errors.resep_obat && (
                                             <p className="text-sm text-red-600 mt-1">{errors.resep_obat}</p>
                                         )}
+                                    </div>
+
+                                    {/* Biaya Section */}
+                                    <div className="border rounded-lg p-4 bg-blue-50">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-sm font-semibold text-blue-900 flex items-center gap-2">
+                                                <Receipt className="w-4 h-4" />
+                                                Rincian Biaya
+                                            </h3>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            {/* Biaya Konsultasi */}
+                                            <div className="flex justify-between items-center py-2 border-b border-blue-200">
+                                                <div>
+                                                    <span className="text-sm font-medium text-gray-900">
+                                                        Biaya Pemeriksaan
+                                                    </span>
+                                                    <p className="text-xs text-gray-600">
+                                                        oleh {dokter.nama_lengkap}
+                                                        {dokter.spesialisasi && ` (${dokter.spesialisasi})`}
+                                                    </p>
+                                                </div>
+                                                <span className="text-sm font-semibold text-gray-900">
+                                                    Rp {Number(dokter.biaya_konsultasi || 0).toLocaleString('id-ID')}
+                                                </span>
+                                            </div>
+
+                                            {/* Biaya Obat */}
+                                            <div className="flex justify-between items-center py-2 border-b border-blue-200">
+                                                <div>
+                                                    <span className="text-sm font-medium text-gray-900">
+                                                        Biaya Obat
+                                                    </span>
+                                                    <p className="text-xs text-gray-600">
+                                                        {selectedObatList.length} jenis obat
+                                                    </p>
+                                                </div>
+                                                <span className="text-sm font-semibold text-gray-900">
+                                                    Rp {totalBiayaObat.toLocaleString('id-ID')}
+                                                </span>
+                                            </div>
+
+                                            {/* Total Biaya */}
+                                            <div className="flex justify-between items-center py-2 pt-3 border-t-2 border-blue-300">
+                                                <span className="text-base font-bold text-blue-900">
+                                                    Total Biaya
+                                                </span>
+                                                <span className="text-base font-bold text-blue-900">
+                                                    Rp {totalBiayaKeseluruhan.toLocaleString('id-ID')}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div>

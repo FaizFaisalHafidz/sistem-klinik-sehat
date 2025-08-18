@@ -47,6 +47,9 @@ class PegawaiController extends Controller
 
         // Transform data for frontend
         $pegawai->getCollection()->transform(function ($item) {
+            // Append accessor untuk biaya konsultasi formatted
+            $item->append('biaya_konsultasi_formatted');
+            
             return [
                 'id' => $item->id,
                 'kode_pegawai' => $item->kode_pegawai,
@@ -60,6 +63,8 @@ class PegawaiController extends Controller
                 'alamat' => $item->alamat,
                 'tanggal_masuk' => $item->tanggal_masuk?->format('Y-m-d'),
                 'is_aktif' => $item->is_aktif,
+                'biaya_konsultasi' => $item->biaya_konsultasi,
+                'biaya_konsultasi_formatted' => $item->biaya_konsultasi_formatted,
                 'user' => $item->user ? [
                     'id' => $item->user->id,
                     'nama_pengguna' => $item->user->nama_pengguna,
@@ -101,6 +106,7 @@ class PegawaiController extends Controller
             'email' => 'nullable|email|max:100',
             'alamat' => 'nullable|string',
             'tanggal_masuk' => 'nullable|date',
+            'biaya_konsultasi' => 'nullable|numeric|min:0|max:99999999.99',
             'is_aktif' => 'required|string|in:true,false',
         ]);
 
@@ -110,6 +116,11 @@ class PegawaiController extends Controller
         // Convert empty user_id to null
         if (empty($validated['user_id'])) {
             $validated['user_id'] = null;
+        }
+
+        // Set default biaya konsultasi jika tidak diisi
+        if (empty($validated['biaya_konsultasi'])) {
+            $validated['biaya_konsultasi'] = 0;
         }
 
         DB::transaction(function () use ($validated) {
@@ -136,6 +147,8 @@ class PegawaiController extends Controller
             'email' => $pegawai->email,
             'alamat' => $pegawai->alamat,
             'tanggal_masuk' => $pegawai->tanggal_masuk?->format('Y-m-d'),
+            'biaya_konsultasi' => $pegawai->biaya_konsultasi,
+            'biaya_konsultasi_formatted' => $pegawai->biaya_konsultasi_formatted,
             'is_aktif' => $pegawai->is_aktif,
             'user' => $pegawai->user ? [
                 'id' => $pegawai->user->id,
@@ -174,6 +187,7 @@ class PegawaiController extends Controller
             'email' => $pegawai->email,
             'alamat' => $pegawai->alamat,
             'tanggal_masuk' => $pegawai->tanggal_masuk?->format('Y-m-d'),
+            'biaya_konsultasi' => $pegawai->biaya_konsultasi,
             'is_aktif' => $pegawai->is_aktif,
         ];
 
@@ -206,6 +220,7 @@ class PegawaiController extends Controller
             'email' => 'nullable|email|max:100',
             'alamat' => 'nullable|string',
             'tanggal_masuk' => 'nullable|date',
+            'biaya_konsultasi' => 'nullable|numeric|min:0|max:99999999.99',
             'is_aktif' => 'required|string|in:true,false',
         ]);
 
@@ -215,6 +230,11 @@ class PegawaiController extends Controller
         // Convert empty user_id to null
         if (empty($validated['user_id'])) {
             $validated['user_id'] = null;
+        }
+
+        // Set default biaya konsultasi jika tidak diisi
+        if (empty($validated['biaya_konsultasi'])) {
+            $validated['biaya_konsultasi'] = 0;
         }
 
         DB::transaction(function () use ($pegawai, $validated) {

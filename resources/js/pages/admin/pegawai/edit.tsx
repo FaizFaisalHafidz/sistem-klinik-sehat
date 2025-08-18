@@ -37,6 +37,7 @@ interface Pegawai {
     email: string | null;
     alamat: string | null;
     tanggal_masuk: string | null;
+    biaya_konsultasi: number;
     is_aktif: boolean;
 }
 
@@ -58,6 +59,7 @@ export default function Edit({ pegawai, availableUsers }: Props) {
         email: pegawai.email || '',
         alamat: pegawai.alamat || '',
         tanggal_masuk: pegawai.tanggal_masuk || '',
+        biaya_konsultasi: pegawai.biaya_konsultasi?.toString() || '0',
         is_aktif: pegawai.is_aktif ? 'true' : 'false',
     });
 
@@ -277,6 +279,36 @@ export default function Edit({ pegawai, availableUsers }: Props) {
                                     )}
                                     <p className="mt-1 text-xs text-gray-500">
                                         Contoh: Dokter Umum, Spesialis Penyakit Dalam, dll.
+                                    </p>
+                                </div>
+
+                                {/* Biaya Konsultasi */}
+                                <div>
+                                    <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+                                        <Badge className="w-4 h-4 mr-2 text-blue-500" />
+                                        Biaya Konsultasi
+                                    </label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
+                                            Rp
+                                        </span>
+                                        <input
+                                            type="number"
+                                            value={data.biaya_konsultasi}
+                                            onChange={(e) => setData('biaya_konsultasi', e.target.value)}
+                                            className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                                                errors.biaya_konsultasi ? 'border-red-500' : 'border-gray-300'
+                                            }`}
+                                            placeholder="0"
+                                            min="0"
+                                            step="1000"
+                                        />
+                                    </div>
+                                    {errors.biaya_konsultasi && (
+                                        <p className="mt-1 text-sm text-red-600">{errors.biaya_konsultasi}</p>
+                                    )}
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Biaya konsultasi per pemeriksaan (khusus untuk dokter)
                                     </p>
                                 </div>
 

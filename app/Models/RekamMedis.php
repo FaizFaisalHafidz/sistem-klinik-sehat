@@ -24,12 +24,18 @@ class RekamMedis extends Model
         'catatan_dokter',
         'tanggal_kontrol',
         'status_rekam_medis',
+        'biaya_konsultasi',
+        'biaya_obat',
+        'total_biaya',
     ];
 
     protected $casts = [
         'tanggal_pemeriksaan' => 'datetime',
         'tanggal_kontrol' => 'date',
         'tanda_vital' => 'array',
+        'biaya_konsultasi' => 'decimal:2',
+        'biaya_obat' => 'decimal:2',
+        'total_biaya' => 'decimal:2',
     ];
 
     // Relationships
@@ -82,6 +88,36 @@ class RekamMedis extends Model
         return 'RM' . $tanggal . str_pad($urutan, 3, '0', STR_PAD_LEFT);
     }
 
+    // Methods for calculating costs
+    public function hitungBiayaObat()
+    {
+        return $this->resep->sum(function ($resep) {
+            return $resep->detailResep->sum(function ($detail) {
+                return $detail->jumlah * $detail->harga_satuan;
+            });
+        });
+    }
+
+    public function hitungTotalBiaya()
+    {
+        return $this->biaya_konsultasi + $this->biaya_obat;
+    }
+
+    public function updateBiayaObat()
+    {
+        $this->biaya_obat = $this->hitungBiayaObat();
+        $this->total_biaya = $this->hitungTotalBiaya();
+        $this->save();
+    }
+
+    public function setBiayaKonsultasi()
+    {
+        if ($this->dokter && $this->dokter->biaya_konsultasi > 0) {
+            $this->biaya_konsultasi = $this->dokter->biaya_konsultasi;
+        }
+        return $this;
+    }
+
     // Accessors
     public function getTekananDarahAttribute()
     {
@@ -101,5 +137,21 @@ class RekamMedis extends Model
     public function getTinggiBadanAttribute()
     {
         return $this->tanda_vital['tinggi_badan'] ?? null;
+    }
+
+    // Currency format accessors
+    public function getBiayaKonsultasiFormattedAttribute()
+    {
+        return 'Rp ' . number_format($this->biaya_konsultasi, 0, ',', '.');
+    }
+
+    public function getBiayaObatFormattedAttribute()
+    {
+        return 'Rp ' . number_format($this->biaya_obat, 0, ',', '.');
+    }
+
+    public function getTotalBiayaFormattedAttribute()
+    {
+        return 'Rp ' . number_format($this->total_biaya, 0, ',', '.');
     }
 }

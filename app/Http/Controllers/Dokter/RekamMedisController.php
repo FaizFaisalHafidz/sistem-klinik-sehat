@@ -93,12 +93,38 @@ class RekamMedisController extends Controller
                 ->with('error', 'Data pegawai tidak ditemukan.');
         }
 
-        $rekamMedis = RekamMedis::with(['pasien', 'pendaftaran', 'dokter'])
+        $rekamMedis = RekamMedis::with(['pasien', 'pendaftaran', 'dokter', 'resep.detailResep.obat'])
             ->where('dokter_id', $pegawai->id)
             ->findOrFail($id);
 
+        // Append formatted biaya attributes
+        $rekamMedis->append([
+            'biaya_konsultasi_formatted',
+            'biaya_obat_formatted', 
+            'total_biaya_formatted'
+        ]);
+
+        // Calculate resep details if exists
+        $resepDetails = [];
+        if ($rekamMedis->resep->isNotEmpty()) {
+            foreach ($rekamMedis->resep as $resep) {
+                foreach ($resep->detailResep as $detail) {
+                    $resepDetails[] = [
+                        'obat' => $detail->obat,
+                        'jumlah' => $detail->jumlah,
+                        'aturan_pakai' => $detail->aturan_pakai,
+                        'harga_satuan' => $detail->harga_satuan,
+                        'subtotal' => $detail->jumlah * $detail->harga_satuan,
+                        'subtotal_formatted' => 'Rp ' . number_format($detail->jumlah * $detail->harga_satuan, 0, ',', '.'),
+                        'keterangan' => $detail->keterangan,
+                    ];
+                }
+            }
+        }
+
         return Inertia::render('dokter/rekammedis/show', [
             'rekamMedis' => $rekamMedis,
+            'resepDetails' => $resepDetails,
         ]);
     }
 
@@ -192,12 +218,38 @@ class RekamMedisController extends Controller
                 ->with('error', 'Data pegawai tidak ditemukan.');
         }
 
-        $rekamMedis = RekamMedis::with(['pasien', 'pendaftaran', 'dokter'])
+        $rekamMedis = RekamMedis::with(['pasien', 'pendaftaran', 'dokter', 'resep.detailResep.obat'])
             ->where('dokter_id', $pegawai->id)
             ->findOrFail($id);
 
+        // Append formatted biaya attributes
+        $rekamMedis->append([
+            'biaya_konsultasi_formatted',
+            'biaya_obat_formatted', 
+            'total_biaya_formatted'
+        ]);
+
+        // Calculate resep details if exists
+        $resepDetails = [];
+        if ($rekamMedis->resep->isNotEmpty()) {
+            foreach ($rekamMedis->resep as $resep) {
+                foreach ($resep->detailResep as $detail) {
+                    $resepDetails[] = [
+                        'obat' => $detail->obat,
+                        'jumlah' => $detail->jumlah,
+                        'aturan_pakai' => $detail->aturan_pakai,
+                        'harga_satuan' => $detail->harga_satuan,
+                        'subtotal' => $detail->jumlah * $detail->harga_satuan,
+                        'subtotal_formatted' => 'Rp ' . number_format($detail->jumlah * $detail->harga_satuan, 0, ',', '.'),
+                        'keterangan' => $detail->keterangan,
+                    ];
+                }
+            }
+        }
+
         return Inertia::render('dokter/rekammedis/cetak', [
             'rekamMedis' => $rekamMedis,
+            'resepDetails' => $resepDetails,
         ]);
     }
 }
