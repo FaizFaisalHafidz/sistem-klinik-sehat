@@ -13,6 +13,12 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Color;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 class LaporanController extends Controller
 {
@@ -388,14 +394,359 @@ class LaporanController extends Controller
 
     private function exportToExcel($data, $stats, $jenisLaporan, $tanggalMulai, $tanggalAkhir, $filename)
     {
-        // For now, return JSON data (implement Excel export later)
-        return response()->json([
-            'message' => 'Excel export functionality will be implemented',
-            'data' => $data,
-            'stats' => $stats,
-            'type' => $jenisLaporan,
-            'period' => "$tanggalMulai to $tanggalAkhir"
+        // Create new Spreadsheet object
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        // Set proper filename
+        $filename = str_replace(['.excel', '.csv'], '.xlsx', $filename);
+        
+        $judulMap = [
+            'pendaftaran' => 'LAPORAN DATA PENDAFTARAN',
+            'antrian' => 'LAPORAN DATA ANTRIAN', 
+            'rekam_medis' => 'LAPORAN REKAM MEDIS',
+            'pasien' => 'LAPORAN DATA PASIEN'
+        ];
+        
+        $judul = $judulMap[$jenisLaporan] ?? 'LAPORAN';
+        
+        // Set document properties
+        $spreadsheet->getProperties()
+            ->setCreator("Klinik Sehat - Yayasan Al Fathonah")
+            ->setLastModifiedBy("Sistem Klinik")
+            ->setTitle($judul)
+            ->setSubject("Laporan " . ucfirst($jenisLaporan))
+            ->setDescription("Laporan periode " . Carbon::parse($tanggalMulai)->format('d/m/Y') . " - " . Carbon::parse($tanggalAkhir)->format('d/m/Y'));
+
+        $currentRow = 1;
+        
+        // Header Section with styling
+        $sheet->setCellValue("A{$currentRow}", $judul);
+        $sheet->mergeCells("A{$currentRow}:H{$currentRow}");
+        $sheet->getStyle("A{$currentRow}")->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'size' => 16,
+                'color' => ['rgb' => 'FFFFFF']
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '2E86AB'] // Biru langit
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER
+            ]
         ]);
+        $sheet->getRowDimension($currentRow)->setRowHeight(30);
+        
+        $currentRow++;
+        $sheet->setCellValue("A{$currentRow}", 'KLINIK SEHAT - Yayasan Al Fathonah');
+        $sheet->mergeCells("A{$currentRow}:H{$currentRow}");
+        $sheet->getStyle("A{$currentRow}")->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'size' => 12,
+                'color' => ['rgb' => 'FFFFFF']
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '4A90A4'] // Biru langit lebih terang
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER
+            ]
+        ]);
+        
+        $currentRow++;
+        $sheet->setCellValue("A{$currentRow}", 'Periode: ' . Carbon::parse($tanggalMulai)->format('d/m/Y') . ' - ' . Carbon::parse($tanggalAkhir)->format('d/m/Y'));
+        $sheet->mergeCells("A{$currentRow}:H{$currentRow}");
+        $sheet->getStyle("A{$currentRow}")->applyFromArray([
+            'font' => ['italic' => true, 'size' => 10],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
+        ]);
+        
+        $currentRow++;
+        $sheet->setCellValue("A{$currentRow}", 'Dicetak pada: ' . Carbon::now()->format('d/m/Y H:i:s') . ' WIB');
+        $sheet->mergeCells("A{$currentRow}:H{$currentRow}");
+        $sheet->getStyle("A{$currentRow}")->applyFromArray([
+            'font' => ['italic' => true, 'size' => 10],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
+        ]);
+        
+        $currentRow += 2; // Skip row
+        
+        // Statistics Section
+        $sheet->setCellValue("A{$currentRow}", 'STATISTIK');
+        $sheet->mergeCells("A{$currentRow}:H{$currentRow}");
+        $sheet->getStyle("A{$currentRow}")->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'size' => 14,
+                'color' => ['rgb' => 'FFFFFF']
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '87CEEB'] // Sky blue
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER
+            ]
+        ]);
+        
+        $currentRow++;
+        
+        // Add statistics with nice formatting
+        switch ($jenisLaporan) {
+            case 'pendaftaran':
+                $statsData = [
+                    ['Total Pendaftaran', $stats['total_pendaftaran'] ?? 0],
+                    ['Pendaftaran Selesai', $stats['pendaftaran_selesai'] ?? 0],
+                    ['Pendaftaran Aktif', $stats['pendaftaran_aktif'] ?? 0],
+                    ['Pendaftaran Dibatalkan', $stats['pendaftaran_dibatalkan'] ?? 0]
+                ];
+                break;
+            case 'antrian':
+                $statsData = [
+                    ['Total Antrian', $stats['total_antrian'] ?? 0],
+                    ['Antrian Menunggu', $stats['antrian_menunggu'] ?? 0],
+                    ['Antrian Dipanggil', $stats['antrian_dipanggil'] ?? 0],
+                    ['Antrian Selesai', $stats['antrian_selesai'] ?? 0]
+                ];
+                break;
+            case 'rekam_medis':
+                $statsData = [
+                    ['Total Rekam Medis', $stats['total_rekam_medis'] ?? 0],
+                    ['Rekam Medis Bulan Ini', $stats['rekam_medis_bulan_ini'] ?? 0],
+                    ['Rekam Medis Hari Ini', $stats['rekam_medis_hari_ini'] ?? 0]
+                ];
+                break;
+            case 'pasien':
+                $statsData = [
+                    ['Total Pasien', $stats['total_pasien'] ?? 0],
+                    ['Pasien Baru Bulan Ini', $stats['pasien_baru_bulan_ini'] ?? 0],
+                    ['Pasien Baru Hari Ini', $stats['pasien_baru_hari_ini'] ?? 0]
+                ];
+                break;
+        }
+        
+        foreach ($statsData as $stat) {
+            $sheet->setCellValue("B{$currentRow}", $stat[0]);
+            $sheet->setCellValue("C{$currentRow}", $stat[1]);
+            $sheet->getStyle("B{$currentRow}:C{$currentRow}")->applyFromArray([
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => 'F0F8FF'] // Alice blue
+                ],
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['rgb' => '87CEEB']
+                    ]
+                ]
+            ]);
+            $sheet->getStyle("B{$currentRow}")->getFont()->setBold(true);
+            $currentRow++;
+        }
+        
+        $currentRow += 2; // Skip rows
+        
+        // Data Section Header
+        $sheet->setCellValue("A{$currentRow}", 'DATA ' . strtoupper($jenisLaporan));
+        $sheet->mergeCells("A{$currentRow}:H{$currentRow}");
+        $sheet->getStyle("A{$currentRow}")->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'size' => 14,
+                'color' => ['rgb' => 'FFFFFF']
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '4682B4'] // Steel blue
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER
+            ]
+        ]);
+        
+        $currentRow += 2;
+        
+        // Column headers with beautiful styling
+        switch ($jenisLaporan) {
+            case 'pendaftaran':
+                $headers = ['No', 'Kode Pendaftaran', 'Tanggal Pendaftaran', 'Nama Pasien', 'No. Telepon', 'Keluhan Utama', 'Status', 'Dibuat Oleh'];
+                break;
+            case 'antrian':
+                $headers = ['No', 'Nomor Antrian', 'Tanggal', 'Nama Pasien', 'Jenis Kelamin', 'Status Antrian', 'Jam Panggil', 'Jam Selesai'];
+                break;
+            case 'rekam_medis':
+                $headers = ['No', 'Kode Rekam Medis', 'Tanggal Pemeriksaan', 'Nama Pasien', 'Umur', 'Jenis Kelamin', 'Dokter', 'Diagnosa'];
+                break;
+            case 'pasien':
+                $headers = ['No', 'Kode Pasien', 'Nama Lengkap', 'NIK', 'Tanggal Lahir', 'Umur', 'Jenis Kelamin', 'Telepon'];
+                break;
+        }
+        
+        // Set headers
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col . $currentRow, $header);
+            $sheet->getStyle($col . $currentRow)->applyFromArray([
+                'font' => [
+                    'bold' => true,
+                    'color' => ['rgb' => 'FFFFFF']
+                ],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => '6495ED'] // Cornflower blue
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical' => Alignment::VERTICAL_CENTER
+                ],
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['rgb' => '4682B4']
+                    ]
+                ]
+            ]);
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+            $col++;
+        }
+        
+        $currentRow++;
+        $headerRow = $currentRow - 1;
+        
+        // Add data rows with alternating colors
+        foreach ($data as $index => $item) {
+            $col = 'A';
+            $isEven = $index % 2 == 0;
+            $bgColor = $isEven ? 'F0F8FF' : 'FFFFFF'; // Alternating alice blue and white
+            
+            switch ($jenisLaporan) {
+                case 'pendaftaran':
+                    $rowData = [
+                        $index + 1,
+                        $item->kode_pendaftaran,
+                        Carbon::parse($item->tanggal_pendaftaran)->format('d/m/Y'),
+                        $item->pasien->nama_lengkap ?? 'N/A',
+                        $item->pasien->telepon ?? 'N/A',
+                        $item->keluhan_utama ?? '-',
+                        ucfirst(str_replace('_', ' ', $item->status_pendaftaran)),
+                        $item->dibuatOleh->nama_lengkap ?? 'N/A'
+                    ];
+                    break;
+                case 'antrian':
+                    $rowData = [
+                        $index + 1,
+                        $item->nomor_antrian,
+                        Carbon::parse($item->tanggal_antrian)->format('d/m/Y'),
+                        $item->pendaftaran->pasien->nama_lengkap ?? 'N/A',
+                        $item->pendaftaran->pasien->jenis_kelamin ?? 'N/A',
+                        ucfirst(str_replace('_', ' ', $item->status_antrian)),
+                        $item->jam_panggil ? Carbon::parse($item->jam_panggil)->format('H:i') : '-',
+                        $item->jam_selesai ? Carbon::parse($item->jam_selesai)->format('H:i') : '-'
+                    ];
+                    break;
+                case 'rekam_medis':
+                    $rowData = [
+                        $index + 1,
+                        $item->kode_rekam_medis,
+                        Carbon::parse($item->tanggal_pemeriksaan)->format('d/m/Y'),
+                        $item->pasien->nama_lengkap ?? 'N/A',
+                        $item->pasien->umur ?? 'N/A',
+                        $item->pasien->jenis_kelamin ?? 'N/A',
+                        $item->dokter->nama_lengkap ?? 'N/A',
+                        $item->diagnosa ?? '-'
+                    ];
+                    break;
+                case 'pasien':
+                    $rowData = [
+                        $index + 1,
+                        $item->kode_pasien,
+                        $item->nama_lengkap,
+                        $item->nik,
+                        Carbon::parse($item->tanggal_lahir)->format('d/m/Y'),
+                        $item->umur . ' tahun',
+                        $item->jenis_kelamin,
+                        $item->telepon ?? '-'
+                    ];
+                    break;
+            }
+            
+            foreach ($rowData as $cellData) {
+                $sheet->setCellValue($col . $currentRow, $cellData);
+                $sheet->getStyle($col . $currentRow)->applyFromArray([
+                    'fill' => [
+                        'fillType' => Fill::FILL_SOLID,
+                        'startColor' => ['rgb' => $bgColor]
+                    ],
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => Border::BORDER_THIN,
+                            'color' => ['rgb' => 'B0C4DE']
+                        ]
+                    ],
+                    'alignment' => [
+                        'vertical' => Alignment::VERTICAL_CENTER
+                    ]
+                ]);
+                
+                // Center align for number column
+                if ($col == 'A') {
+                    $sheet->getStyle($col . $currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                }
+                
+                $col++;
+            }
+            $currentRow++;
+        }
+        
+        // Footer
+        $currentRow += 2;
+        $sheet->setCellValue("A{$currentRow}", '=== AKHIR LAPORAN ===');
+        $sheet->mergeCells("A{$currentRow}:H{$currentRow}");
+        $sheet->getStyle("A{$currentRow}")->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'size' => 12,
+                'color' => ['rgb' => 'FFFFFF']
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '2E86AB']
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER
+            ]
+        ]);
+        
+        $currentRow++;
+        $sheet->setCellValue("A{$currentRow}", '© ' . date('Y') . ' Klinik Sehat - Yayasan Al Fathonah');
+        $sheet->mergeCells("A{$currentRow}:H{$currentRow}");
+        $sheet->getStyle("A{$currentRow}")->applyFromArray([
+            'font' => ['italic' => true, 'size' => 10],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
+        ]);
+        
+        // Set page setup
+        $sheet->getPageSetup()->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE);
+        $sheet->getPageSetup()->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4);
+        
+        // Create writer and output
+        $writer = new Xlsx($spreadsheet);
+        
+        // Set headers for download
+        $headers = [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'max-age=0',
+        ];
+
+        return response()->streamDownload(function() use ($writer) {
+            $writer->save('php://output');
+        }, $filename, $headers);
     }
 
     public function show($id, Request $request)
