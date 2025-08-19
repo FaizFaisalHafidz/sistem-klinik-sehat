@@ -158,6 +158,7 @@ class PemeriksaanController extends Controller
                 'keluhan_utama' => 'required|string|max:1000',
                 'riwayat_penyakit' => 'nullable|string|max:1000',
                 'tekanan_darah' => 'nullable|string|max:20',
+                'suhu' => 'nullable|numeric|min:35|max:45',
                 'tinggi_badan' => 'nullable|numeric|min:50|max:250',
                 'berat_badan' => 'nullable|numeric|min:10|max:300',
                 'pemeriksaan_fisik' => 'nullable|string|max:1000',
@@ -235,6 +236,9 @@ class PemeriksaanController extends Controller
             $tandaVital = [];
             if ($request->filled('tekanan_darah')) {
                 $tandaVital['tekanan_darah'] = $request->tekanan_darah;
+            }
+            if ($request->filled('suhu')) {
+                $tandaVital['suhu'] = $request->suhu . '°C';
             }
             if ($request->filled('tinggi_badan')) {
                 $tandaVital['tinggi_badan'] = $request->tinggi_badan . ' cm';
@@ -473,6 +477,10 @@ class PemeriksaanController extends Controller
                 'resep_obat.*.keterangan' => 'nullable|string|max:200',
                 'catatan' => 'nullable|string|max:1000',
                 'anjuran' => 'nullable|string|max:1000',
+                'tekanan_darah' => 'nullable|string|max:20',
+                'suhu' => 'nullable|numeric|min:35|max:45',
+                'tinggi_badan' => 'nullable|numeric|min:50|max:250',
+                'berat_badan' => 'nullable|numeric|min:10|max:300',
             ]);
 
             Log::info('Validasi data update berhasil', ['pendaftaran_id' => $id]);
@@ -589,6 +597,21 @@ class PemeriksaanController extends Controller
             $anamnesis = $request->keluhan_utama . ($request->riwayat_penyakit ? "\n\nRiwayat Penyakit:\n" . $request->riwayat_penyakit : '');
             $rencana_pengobatan = $request->tindakan . (!empty($resepText) ? "\n\nResep Obat:\n" . $resepText : '') . ($request->anjuran ? "\n\nAnjuran:\n" . $request->anjuran : '');
 
+            // Prepare vital signs data
+            $tandaVital = [];
+            if ($request->filled('tekanan_darah')) {
+                $tandaVital['tekanan_darah'] = $request->tekanan_darah;
+            }
+            if ($request->filled('suhu')) {
+                $tandaVital['suhu'] = $request->suhu . '°C';
+            }
+            if ($request->filled('tinggi_badan')) {
+                $tandaVital['tinggi_badan'] = $request->tinggi_badan . ' cm';
+            }
+            if ($request->filled('berat_badan')) {
+                $tandaVital['berat_badan'] = $request->berat_badan . ' kg';
+            }
+
             // Store old values for comparison
             $oldValues = [
                 'anamnesis' => $pendaftaran->rekamMedis->anamnesis,
@@ -596,6 +619,7 @@ class PemeriksaanController extends Controller
                 'diagnosa' => $pendaftaran->rekamMedis->diagnosa,
                 'rencana_pengobatan' => $pendaftaran->rekamMedis->rencana_pengobatan,
                 'catatan_dokter' => $pendaftaran->rekamMedis->catatan_dokter,
+                'tanda_vital' => $pendaftaran->rekamMedis->tanda_vital,
             ];
 
             $pendaftaran->rekamMedis->update([
@@ -604,6 +628,7 @@ class PemeriksaanController extends Controller
                 'diagnosa' => $request->diagnosis,
                 'rencana_pengobatan' => $rencana_pengobatan,
                 'catatan_dokter' => $request->catatan,
+                'tanda_vital' => !empty($tandaVital) ? json_encode($tandaVital) : null,
             ]);
 
             Log::info('Rekam medis berhasil diupdate', [
@@ -615,6 +640,7 @@ class PemeriksaanController extends Controller
                     'diagnosa_changed' => $oldValues['diagnosa'] !== $request->diagnosis,
                     'rencana_pengobatan_changed' => $oldValues['rencana_pengobatan'] !== $rencana_pengobatan,
                     'catatan_dokter_changed' => $oldValues['catatan_dokter'] !== $request->catatan,
+                    'tanda_vital_changed' => $oldValues['tanda_vital'] !== (!empty($tandaVital) ? json_encode($tandaVital) : null),
                 ]
             ]);
 

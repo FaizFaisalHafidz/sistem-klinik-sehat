@@ -484,4 +484,91 @@ class LaporanController extends Controller
             'jenisLaporan' => 'antrian'
         ]);
     }
+
+    public function cetak($id, Request $request)
+    {
+        $jenisLaporan = $request->get('jenis_laporan', 'rekam_medis');
+
+        switch ($jenisLaporan) {
+            case 'rekam_medis':
+                return $this->cetakRekamMedis($id);
+                
+            case 'pendaftaran':
+                return $this->cetakPendaftaran($id);
+                
+            case 'pasien':
+                return $this->cetakPasien($id);
+                
+            case 'antrian':
+                return $this->cetakAntrian($id);
+                
+            default:
+                abort(404, 'Jenis laporan tidak valid');
+        }
+    }
+
+    private function cetakRekamMedis($id)
+    {
+        $rekamMedis = RekamMedis::with([
+            'pasien:id,nama_lengkap,tanggal_lahir,jenis_kelamin,telepon,alamat,kode_pasien',
+            'dokter:id,nama_lengkap,spesialisasi,telepon',
+            'pendaftaran:id,kode_pendaftaran,jenis_pemeriksaan,status_pendaftaran',
+            'resep.detailResep.obat:id,nama_obat,satuan'
+        ])->findOrFail($id);
+
+        // Calculate total biaya if not set
+        if (!$rekamMedis->total_biaya || $rekamMedis->total_biaya == 0) {
+            $rekamMedis->updateBiayaObat();
+            $rekamMedis->refresh();
+        }
+
+        return Inertia::render('pendaftaran/laporan/cetak', [
+            'data' => $rekamMedis,
+            'jenisLaporan' => 'rekam_medis'
+        ]);
+    }
+
+    private function cetakPendaftaran($id)
+    {
+        $pendaftaran = Pendaftaran::with([
+            'pasien:id,nama_lengkap,tanggal_lahir,jenis_kelamin,telepon,alamat,kode_pasien',
+            'dokter:id,nama_lengkap,spesialisasi',
+            'antrian:id,nomor_antrian,status_antrian,waktu_dipanggil,estimasi_waktu'
+        ])->findOrFail($id);
+
+        return Inertia::render('pendaftaran/laporan/cetak', [
+            'data' => $pendaftaran,
+            'jenisLaporan' => 'pendaftaran'
+        ]);
+    }
+
+    private function cetakPasien($id)
+    {
+        $pasien = Pasien::with([
+            'pendaftaran' => function($query) {
+                $query->latest()->take(5);
+            },
+            'rekamMedis' => function($query) {
+                $query->latest()->take(5);
+            }
+        ])->findOrFail($id);
+
+        return Inertia::render('pendaftaran/laporan/cetak', [
+            'data' => $pasien,
+            'jenisLaporan' => 'pasien'
+        ]);
+    }
+
+    private function cetakAntrian($id)
+    {
+        $antrian = Antrian::with([
+            'pendaftaran.pasien:id,nama_lengkap,tanggal_lahir,jenis_kelamin,telepon,kode_pasien',
+            'pendaftaran.dokter:id,nama_lengkap,spesialisasi'
+        ])->findOrFail($id);
+
+        return Inertia::render('pendaftaran/laporan/cetak', [
+            'data' => $antrian,
+            'jenisLaporan' => 'antrian'
+        ]);
+    }
 }

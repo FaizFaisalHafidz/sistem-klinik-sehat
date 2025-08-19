@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class LaporanController extends Controller
 {
@@ -176,6 +177,54 @@ class LaporanController extends Controller
         ]);
     }
 
+    public function cetak($id)
+    {
+        $rekamMedis = RekamMedis::with(['pasien', 'dokter'])->findOrFail($id);
+
+        // Parse tanda vital
+        $tandaVital = [];
+        if ($rekamMedis->tanda_vital) {
+            $tandaVital = is_array($rekamMedis->tanda_vital) 
+                ? $rekamMedis->tanda_vital 
+                : json_decode($rekamMedis->tanda_vital, true) ?? [];
+        }
+
+        $rekamMedisData = [
+            'id' => $rekamMedis->id,
+            'kode_rekam_medis' => $rekamMedis->kode_rekam_medis,
+            'tanggal_pemeriksaan' => $rekamMedis->tanggal_pemeriksaan->format('Y-m-d'),
+            'tanggal_pemeriksaan_formatted' => $rekamMedis->tanggal_pemeriksaan->format('d F Y'),
+            'pasien' => [
+                'id' => $rekamMedis->pasien->id,
+                'nama_lengkap' => $rekamMedis->pasien->nama_lengkap,
+                'kode_pasien' => $rekamMedis->pasien->kode_pasien,
+                'tanggal_lahir' => $rekamMedis->pasien->tanggal_lahir,
+                'tanggal_lahir_formatted' => Carbon::parse($rekamMedis->pasien->tanggal_lahir)->format('d F Y'),
+                'jenis_kelamin' => $rekamMedis->pasien->jenis_kelamin,
+                'alamat' => $rekamMedis->pasien->alamat,
+                'nomor_telepon' => $rekamMedis->pasien->telepon,
+                'umur' => Carbon::parse($rekamMedis->pasien->tanggal_lahir)->age,
+            ],
+            'dokter' => [
+                'id' => $rekamMedis->dokter->id,
+                'nama_lengkap' => $rekamMedis->dokter->nama_lengkap,
+                'jabatan' => $rekamMedis->dokter->jabatan,
+                'nomor_sip' => $rekamMedis->dokter->nomor_izin ?? '-',
+            ],
+            'anamnesis' => $rekamMedis->anamnesis,
+            'diagnosa' => $rekamMedis->diagnosa,
+            'pemeriksaan_fisik' => $rekamMedis->pemeriksaan_fisik,
+            'rencana_pengobatan' => $rekamMedis->rencana_pengobatan,
+            'catatan_dokter' => $rekamMedis->catatan_dokter,
+            'tanda_vital' => $tandaVital,
+            'status_rekam_medis' => $rekamMedis->status_rekam_medis,
+        ];
+
+        return Inertia::render('admin/laporan/cetak', [
+            'rekamMedis' => $rekamMedisData,
+        ]);
+    }
+
     public function export(Request $request)
     {
         $query = RekamMedis::with(['pasien', 'dokter'])
@@ -202,70 +251,42 @@ class LaporanController extends Controller
             $query->where('anamnesis', 'like', '%' . $request->jenis_pemeriksaan . '%');
         }
 
-        $rekamMedis = $query->get();
+        $data = $query->get();
 
-        $filename = 'laporan_rekam_medis_' . date('Y-m-d_H-i-s') . '.csv';
-
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        // Calculate statistics
+        $stats = [
+            'total_rekam_medis' => $data->count(),
+            'rekam_medis_bulan_ini' => $data->filter(function($item) {
+                return $item->tanggal_pemeriksaan->month == now()->month && 
+                       $item->tanggal_pemeriksaan->year == now()->year;
+            })->count(),
+            'rekam_medis_hari_ini' => $data->filter(function($item) {
+                return $item->tanggal_pemeriksaan->toDateString() == now()->toDateString();
+            })->count(),
+            'total_pasien_unik' => $data->pluck('pasien_id')->unique()->count()
         ];
 
-        $callback = function () use ($rekamMedis) {
-            $file = fopen('php://output', 'w');
-            
-            // Add BOM for proper UTF-8 encoding in Excel
-            fwrite($file, "\xEF\xBB\xBF");
-            
-            // Header CSV
-            fputcsv($file, [
-                'No',
-                'Tanggal Pemeriksaan',
-                'No. Rekam Medis',
-                'Nama Pasien',
-                'Umur',
-                'Jenis Kelamin',
-                'Dokter',
-                'Anamnesis',
-                'Diagnosa',
-                'Pemeriksaan Fisik',
-                'Rencana Pengobatan',
-                'Tekanan Darah',
-                'Suhu Tubuh',
-                'Berat Badan',
-                'Tinggi Badan',
-                'Catatan Dokter',
-                'Status',
-            ]);
+        // Generate period text
+        $periode = 'Semua Data';
+        if ($request->filled('tanggal_dari') && $request->filled('tanggal_sampai')) {
+            $dari = Carbon::parse($request->tanggal_dari)->format('d M Y');
+            $sampai = Carbon::parse($request->tanggal_sampai)->format('d M Y');
+            $periode = $dari . ' - ' . $sampai;
+        } elseif ($request->filled('tanggal_dari')) {
+            $periode = 'Dari ' . Carbon::parse($request->tanggal_dari)->format('d M Y');
+        } elseif ($request->filled('tanggal_sampai')) {
+            $periode = 'Sampai ' . Carbon::parse($request->tanggal_sampai)->format('d M Y');
+        }
 
-            // Data CSV
-            foreach ($rekamMedis as $index => $rekam) {
-                $tandaVital = $rekam->tanda_vital ? json_decode($rekam->tanda_vital, true) : [];
-                
-                fputcsv($file, [
-                    $index + 1,
-                    $rekam->tanggal_pemeriksaan->format('d/m/Y'),
-                    $rekam->pasien->kode_pasien,
-                    $rekam->pasien->nama_lengkap,
-                    Carbon::parse($rekam->pasien->tanggal_lahir)->age . ' tahun',
-                    ucfirst($rekam->pasien->jenis_kelamin),
-                    $rekam->dokter->nama_lengkap,
-                    $rekam->anamnesis,
-                    $rekam->diagnosa,
-                    $rekam->pemeriksaan_fisik,
-                    $rekam->rencana_pengobatan,
-                    $tandaVital['tekanan_darah'] ?? '-',
-                    isset($tandaVital['suhu']) ? $tandaVital['suhu'] . '°C' : '-',
-                    isset($tandaVital['berat_badan']) ? $tandaVital['berat_badan'] . ' kg' : '-',
-                    isset($tandaVital['tinggi_badan']) ? $tandaVital['tinggi_badan'] . ' cm' : '-',
-                    $rekam->catatan_dokter,
-                    ucfirst($rekam->status_rekam_medis),
-                ]);
-            }
+        $pdf = Pdf::loadView('laporan.pdf.rekam_medis', [
+            'judul' => 'Laporan Rekam Medis',
+            'periode' => $periode,
+            'data' => $data,
+            'stats' => $stats
+        ]);
 
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        $filename = 'laporan_rekam_medis_' . date('Y-m-d_H-i-s') . '.pdf';
+        
+        return $pdf->download($filename);
     }
 }

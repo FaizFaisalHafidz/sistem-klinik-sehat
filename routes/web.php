@@ -53,6 +53,7 @@ Route::middleware(['auth', 'active.user'])->group(function () {
         // Laporan routes
         Route::get('laporan', [LaporanController::class, 'index'])->name('laporan.index');
         Route::get('laporan/{rekamMedis}', [LaporanController::class, 'show'])->name('laporan.show');
+        Route::get('laporan/{rekamMedis}/cetak', [LaporanController::class, 'cetak'])->name('laporan.cetak');
         Route::get('laporan-export', [LaporanController::class, 'export'])->name('laporan.export');
 
         // Log Aktivitas routes
@@ -95,8 +96,9 @@ Route::middleware(['auth', 'active.user'])->group(function () {
 
         // Laporan routes
         Route::get('laporan', [PendaftaranLaporanController::class, 'index'])->name('laporan.index');
-        Route::get('laporan/{id}', [PendaftaranLaporanController::class, 'show'])->name('laporan.show');
         Route::get('laporan/export', [PendaftaranLaporanController::class, 'export'])->name('laporan.export');
+        Route::get('laporan/{id}', [PendaftaranLaporanController::class, 'show'])->name('laporan.show');
+        Route::get('laporan/{id}/cetak', [PendaftaranLaporanController::class, 'cetak'])->name('laporan.cetak');
     });
 
     Route::prefix('dokter')->name('dokter.')->group(function () {

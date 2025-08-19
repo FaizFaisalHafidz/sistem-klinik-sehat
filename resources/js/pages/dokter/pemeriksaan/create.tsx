@@ -123,6 +123,7 @@ export default function Create({ pendaftaran, obatList, dokter }: Props) {
         riwayat_penyakit: '',
         // Vital Signs
         tekanan_darah: '',
+        suhu: '',
         tinggi_badan: '',
         berat_badan: '',
         pemeriksaan_fisik: '',
@@ -335,7 +336,7 @@ export default function Create({ pendaftaran, obatList, dokter }: Props) {
                                             <Stethoscope className="w-4 h-4" />
                                             Tanda Vital
                                         </h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                             <div>
                                                 <Label htmlFor="tekanan_darah">Tekanan Darah</Label>
                                                 <input
@@ -348,6 +349,23 @@ export default function Create({ pendaftaran, obatList, dokter }: Props) {
                                                 />
                                                 {errors.tekanan_darah && (
                                                     <p className="text-sm text-red-600 mt-1">{errors.tekanan_darah}</p>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="suhu">Suhu Badan (°C)</Label>
+                                                <input
+                                                    type="number"
+                                                    id="suhu"
+                                                    placeholder="36.5"
+                                                    step="0.1"
+                                                    min="35"
+                                                    max="45"
+                                                    value={data.suhu}
+                                                    onChange={(e) => setData('suhu', e.target.value)}
+                                                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.suhu ? 'border-red-500' : ''}`}
+                                                />
+                                                {errors.suhu && (
+                                                    <p className="text-sm text-red-600 mt-1">{errors.suhu}</p>
                                                 )}
                                             </div>
                                             <div>

@@ -60,6 +60,7 @@ interface RekamMedis {
     catatan: string;
     anjuran: string;
     tanggal_pemeriksaan: string;
+    tanda_vital: any;
 }
 
 interface Pendaftaran {
@@ -91,6 +92,9 @@ export default function Edit({ pendaftaran, obatList }: Props) {
     const [searchObat, setSearchObat] = useState('');
     const [selectedObatList, setSelectedObatList] = useState<ResepObat[]>([]);
     
+    // Extract vital signs from existing data
+    const tandaVital = pendaftaran.rekamMedis.tanda_vital || {};
+    
     const { data, setData, put, processing, errors } = useForm({
         keluhan_utama: pendaftaran.rekamMedis.keluhan_utama || '',
         riwayat_penyakit: pendaftaran.rekamMedis.riwayat_penyakit || '',
@@ -100,6 +104,10 @@ export default function Edit({ pendaftaran, obatList }: Props) {
         resep_obat: [] as any[],
         catatan: pendaftaran.rekamMedis.catatan || '',
         anjuran: pendaftaran.rekamMedis.anjuran || '',
+        tekanan_darah: tandaVital.tekanan_darah || '',
+        suhu: tandaVital.suhu ? tandaVital.suhu.replace('°C', '') : '',
+        tinggi_badan: tandaVital.tinggi_badan ? tandaVital.tinggi_badan.replace(' cm', '') : '',
+        berat_badan: tandaVital.berat_badan ? tandaVital.berat_badan.replace(' kg', '') : '',
     });
 
     // Filter obat berdasarkan pencarian
@@ -256,6 +264,79 @@ export default function Edit({ pendaftaran, obatList }: Props) {
                                         {errors.riwayat_penyakit && (
                                             <p className="mt-1 text-sm text-red-600">{errors.riwayat_penyakit}</p>
                                         )}
+                                    </div>
+
+                                    {/* Vital Signs Section */}
+                                    <div>
+                                        <Label className="text-base font-semibold">Tanda Vital</Label>
+                                        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                            <div>
+                                                <Label htmlFor="tekanan_darah">Tekanan Darah</Label>
+                                                <input
+                                                    type="text"
+                                                    id="tekanan_darah"
+                                                    value={data.tekanan_darah}
+                                                    onChange={(e) => setData('tekanan_darah', e.target.value)}
+                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                                    placeholder="120/80"
+                                                />
+                                                {errors.tekanan_darah && (
+                                                    <p className="mt-1 text-sm text-red-600">{errors.tekanan_darah}</p>
+                                                )}
+                                            </div>
+
+                                            <div>
+                                                <Label htmlFor="suhu">Suhu Badan (°C)</Label>
+                                                <input
+                                                    type="number"
+                                                    id="suhu"
+                                                    step="0.1"
+                                                    min="35"
+                                                    max="45"
+                                                    value={data.suhu}
+                                                    onChange={(e) => setData('suhu', e.target.value)}
+                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                                    placeholder="36.5"
+                                                />
+                                                {errors.suhu && (
+                                                    <p className="mt-1 text-sm text-red-600">{errors.suhu}</p>
+                                                )}
+                                            </div>
+
+                                            <div>
+                                                <Label htmlFor="tinggi_badan">Tinggi Badan (cm)</Label>
+                                                <input
+                                                    type="number"
+                                                    id="tinggi_badan"
+                                                    min="50"
+                                                    max="250"
+                                                    value={data.tinggi_badan}
+                                                    onChange={(e) => setData('tinggi_badan', e.target.value)}
+                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                                    placeholder="170"
+                                                />
+                                                {errors.tinggi_badan && (
+                                                    <p className="mt-1 text-sm text-red-600">{errors.tinggi_badan}</p>
+                                                )}
+                                            </div>
+
+                                            <div>
+                                                <Label htmlFor="berat_badan">Berat Badan (kg)</Label>
+                                                <input
+                                                    type="number"
+                                                    id="berat_badan"
+                                                    min="10"
+                                                    max="300"
+                                                    value={data.berat_badan}
+                                                    onChange={(e) => setData('berat_badan', e.target.value)}
+                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                                    placeholder="65"
+                                                />
+                                                {errors.berat_badan && (
+                                                    <p className="mt-1 text-sm text-red-600">{errors.berat_badan}</p>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div>

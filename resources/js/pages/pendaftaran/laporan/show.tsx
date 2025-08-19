@@ -141,7 +141,28 @@ export default function Show({ rekamMedis, pendaftaran, pasien, antrian, jenisLa
     };
 
     const handlePrint = () => {
-        window.print();
+        // Determine the current data ID based on the report type
+        let currentId;
+        if (jenisLaporan === 'rekam_medis' && rekamMedis) {
+            currentId = rekamMedis.id;
+        } else if (jenisLaporan === 'pendaftaran' && pendaftaran) {
+            currentId = pendaftaran.id;
+        } else if (jenisLaporan === 'pasien' && pasien) {
+            currentId = pasien.id;
+        } else if (jenisLaporan === 'antrian' && antrian) {
+            currentId = antrian.id;
+        }
+
+        if (currentId) {
+            // Navigate to print page
+            window.open(
+                route('pendaftaran.laporan.cetak', { 
+                    id: currentId,
+                    jenis_laporan: jenisLaporan 
+                }),
+                '_blank'
+            );
+        }
     };
 
     if (jenisLaporan === 'rekam_medis' && rekamMedis) {

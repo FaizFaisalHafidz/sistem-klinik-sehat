@@ -309,11 +309,11 @@
                 <td>{{ $item->kode_pendaftaran }}</td>
                 <td>
                     <strong>{{ $item->pasien->nama_lengkap }}</strong><br>
-                    <small>{{ $item->pasien->kode_pasien }} • {{ $item->pasien->umur }} th • {{ $item->pasien->jenis_kelamin === 'laki-laki' ? 'L' : 'P' }}</small>
+                    <small>{{ $item->pasien->kode_pasien }} • {{ \Carbon\Carbon::parse($item->pasien->tanggal_lahir)->age ?? 0 }} th • {{ $item->pasien->jenis_kelamin === 'laki-laki' ? 'L' : 'P' }}</small>
                 </td>
-                <td>{{ $item->tanggal_pendaftaran->format('d/m/Y H:i') }}</td>
-                <td>{{ ucfirst(str_replace('_', ' ', $item->jenis_pemeriksaan)) }}</td>
-                <td>{{ \Str::limit($item->keluhan, 40) }}</td>
+                <td>{{ $item->created_at->format('d/m/Y H:i') }}</td>
+                <td>{{ ucfirst(str_replace('_', ' ', $item->jenis_pemeriksaan ?? '')) }}</td>
+                <td>{{ \Str::limit($item->keluhan_utama ?? 'Tidak ada keluhan', 40) }}</td>
                 <td>
                     @if($item->status_pendaftaran === 'selesai')
                         <span class="badge badge-success">Selesai</span>

@@ -277,7 +277,7 @@ export default function Index({
                             ) : (
                                 <Download className="w-4 h-4 mr-2" />
                             )}
-                            {isExporting ? 'Mengekspor...' : 'Export'}
+                            {isExporting ? 'Mengekspor...' : 'Export PDF'}
                         </button>
                     </div>
                 </div>

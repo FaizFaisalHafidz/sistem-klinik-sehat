@@ -69,10 +69,6 @@ interface Props {
 }
 
 export default function Show({ rekamMedis, riwayatRekamMedis }: Props) {
-    const handlePrint = () => {
-        window.print();
-    };
-
     return (
         <AppLayout>
             <Head title={`Detail Rekam Medis - ${rekamMedis.pasien.nama_lengkap}`} />
@@ -98,13 +94,14 @@ export default function Show({ rekamMedis, riwayatRekamMedis }: Props) {
                         </div>
                     </div>
 
-                    <button
-                        onClick={handlePrint}
+                    <Link
+                        href={`/admin/laporan/${rekamMedis.id}/cetak`}
+                        target="_blank"
                         className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 border border-transparent rounded-lg font-medium text-white hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-lg hover:shadow-xl print:hidden"
                     >
                         <Eye className="w-4 h-4 mr-2" />
-                        Print
-                    </button>
+                        Cetak
+                    </Link>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
